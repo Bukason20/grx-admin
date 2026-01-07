@@ -18,6 +18,7 @@ import Overview from "../pages/Overview";
 import GiftCards from "../pages/GiftCards";
 import UsersTab from "../pages/Users";
 import SettingsTab from "../pages/Settings";
+import Modal from "../components/Modal";
 
 export default function AdminDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
