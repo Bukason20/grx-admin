@@ -1,23 +1,21 @@
 import React from "react";
 import StatsCard from "../components/StatsCard";
 
-const Overview = ({ stats, giftCards }) => {
+const Overview = ({ stats, giftCardStores }) => {
   return (
     <div className="space-y-8">
-      {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {stats.map((stat, idx) => (
           <StatsCard key={idx} {...stat} />
         ))}
       </div>
 
-      {/* Quick Stats */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow p-6 text-white">
-          <h3 className="text-lg font-semibold mb-2">Top Performing Card</h3>
-          <p className="text-3xl font-bold">$50 Gift Card</p>
+          <h3 className="text-lg font-semibold mb-2">Top Performing Store</h3>
+          <p className="text-3xl font-bold">Amazon</p>
           <p className="text-blue-100 text-sm mt-2">
-            856 issued • 634 redeemed (74%)
+            1,240 issued • 892 redeemed (72%)
           </p>
         </div>
         <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow p-6 text-white">
@@ -32,11 +30,10 @@ const Overview = ({ stats, giftCards }) => {
         </div>
       </div>
 
-      {/* Recent Gift Cards */}
       <div className="bg-white rounded-xl shadow overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+        <div className="px-6 py-4 border-b border-gray-200">
           <h3 className="text-lg font-semibold text-gray-900">
-            Recent Gift Cards
+            Recent Gift Card Stores
           </h3>
         </div>
         <div className="overflow-x-auto">
@@ -44,16 +41,16 @@ const Overview = ({ stats, giftCards }) => {
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
                 <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">
-                  Name
+                  Store Name
                 </th>
                 <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">
-                  Amount
+                  Category
                 </th>
                 <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">
-                  Issued
+                  Rate
                 </th>
                 <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">
-                  Redeemed
+                  Cards
                 </th>
                 <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">
                   Status
@@ -61,32 +58,32 @@ const Overview = ({ stats, giftCards }) => {
               </tr>
             </thead>
             <tbody>
-              {giftCards.slice(0, 3).map((card) => (
+              {giftCardStores?.slice(0, 3).map((store) => (
                 <tr
-                  key={card.id}
+                  key={store.id}
                   className="border-b border-gray-200 hover:bg-gray-50"
                 >
                   <td className="px-6 py-4 text-sm text-gray-900 font-medium">
-                    {card.name}
+                    {store.name}
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-600">
-                    ${card.amount}
+                    {store.category}
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-600">
-                    {card.issued}
+                    ${store.rate}
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-600">
-                    {card.redeemed}
+                    {store.giftCards.length}
                   </td>
                   <td className="px-6 py-4 text-sm">
                     <span
                       className={`px-3 py-1 rounded-full text-xs font-medium ${
-                        card.status === "active"
+                        store.status === "active"
                           ? "bg-green-100 text-green-800"
                           : "bg-gray-100 text-gray-800"
                       }`}
                     >
-                      {card.status}
+                      {store.status}
                     </span>
                   </td>
                 </tr>

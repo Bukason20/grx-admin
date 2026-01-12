@@ -19,6 +19,8 @@ import GiftCards from "../pages/GiftCards";
 import UsersTab from "../pages/Users";
 import SettingsTab from "../pages/Settings";
 import Modal from "../components/Modal";
+import Sidebar from "../components/Sidebar";
+import Header from "../components/Header";
 
 export default function AdminDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -26,7 +28,6 @@ export default function AdminDashboard() {
   const [showModal, setShowModal] = useState(false);
   const [modalType, setModalType] = useState(null);
 
-  // Sample data
   const stats = [
     {
       label: "Total Users",
@@ -58,51 +59,42 @@ export default function AdminDashboard() {
     },
   ];
 
-  const [giftCards, setGiftCards] = useState([
+  const [giftCardStores, setGiftCardStores] = useState([
     {
       id: 1,
-      name: "$25 Gift Card",
-      amount: 25,
-      category: "Standard",
+      name: "Amazon",
+      category: "Popular",
+      rate: 1000,
+      image: "🛍️",
+      description: "Amazon Gift Cards",
+      giftCards: ["$25", "$50", "$100"],
       issued: 1240,
       redeemed: 892,
       status: "active",
     },
     {
       id: 2,
-      name: "$50 Gift Card",
-      amount: 50,
-      category: "Premium",
+      name: "Apple Store",
+      category: "Popular",
+      rate: 500,
+      image: "🍎",
+      description: "Apple Store Gift Cards",
+      giftCards: ["$25", "$100"],
       issued: 856,
       redeemed: 634,
       status: "active",
     },
     {
       id: 3,
-      name: "$100 Gift Card",
-      amount: 100,
-      category: "Premium",
+      name: "Xbox Store",
+      category: "Shopping",
+      rate: 750,
+      image: "🎮",
+      description: "Xbox Game Pass",
+      giftCards: ["$30", "$60", "$150"],
       issued: 432,
       redeemed: 289,
       status: "active",
-    },
-    {
-      id: 4,
-      name: "Birthday Special",
-      amount: 75,
-      category: "Seasonal",
-      issued: 567,
-      redeemed: 234,
-      status: "active",
-    },
-    {
-      id: 5,
-      name: "Holiday Bundle",
-      amount: 150,
-      category: "Bundle",
-      issued: 234,
-      redeemed: 89,
-      status: "inactive",
     },
   ]);
 
@@ -181,16 +173,21 @@ export default function AdminDashboard() {
     setModalType(null);
   };
 
-  const handleCreateCard = (formData) => {
-    const newCard = {
-      id: giftCards.length + 1,
+  const handleCreateStore = (formData) => {
+    const newStore = {
+      id: giftCardStores.length + 1,
       ...formData,
+      giftCards: formData.giftCards || [],
       issued: 0,
       redeemed: 0,
       status: "active",
     };
-    setGiftCards([...giftCards, newCard]);
+    setGiftCardStores([...giftCardStores, newStore]);
     closeModal();
+  };
+
+  const handleDeleteStore = (id) => {
+    setGiftCardStores(giftCardStores.filter((store) => store.id !== id));
   };
 
   const handleCreateUser = (formData) => {
@@ -205,10 +202,6 @@ export default function AdminDashboard() {
     closeModal();
   };
 
-  const handleDeleteCard = (id) => {
-    setGiftCards(giftCards.filter((card) => card.id !== id));
-  };
-
   const handleDeleteUser = (id) => {
     setUsers(users.filter((user) => user.id !== id));
   };
@@ -216,19 +209,19 @@ export default function AdminDashboard() {
   const renderContent = () => {
     switch (activeTab) {
       case "overview":
-        return <Overview stats={stats} giftCards={giftCards} />;
+        return <Overview stats={stats} giftCardStores={giftCardStores} />;
       case "giftcards":
         return (
           <GiftCards
-            giftCards={giftCards}
+            giftCardStores={giftCardStores}
             onEdit={openModal}
-            onDelete={handleDeleteCard}
-            onCreate={() => openModal("create-card")}
+            onDelete={handleDeleteStore}
+            onCreate={() => openModal("create-store")}
           />
         );
       case "users":
         return (
-          <UsersTab
+          <Users
             users={users}
             onEdit={openModal}
             onDelete={handleDeleteUser}
@@ -236,101 +229,40 @@ export default function AdminDashboard() {
           />
         );
       case "settings":
-        return <SettingsTab />;
+        return <Settings />;
       default:
-        return <Overview stats={stats} giftCards={giftCards} />;
+        return <Overview stats={stats} giftCardStores={giftCardStores} />;
     }
   };
 
   return (
     <div className="flex h-screen bg-gray-50">
-      {/* Sidebar */}
-      <div
-        className={`${
-          sidebarOpen ? "w-64" : "w-20"
-        } bg-gradient-to-b from-purple-600 to-purple-800 text-white transition-all duration-300 fixed h-screen overflow-y-auto shadow-lg`}
-      >
-        <div className="p-6 flex items-center justify-between">
-          {sidebarOpen && <h1 className="text-2xl font-bold">GiftCard</h1>}
-          <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="hover:bg-purple-700 p-2 rounded"
-          >
-            {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
-          </button>
-        </div>
-
-        <nav className="mt-8 space-y-2 px-4">
-          {menuItems.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => setActiveTab(item.id)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition ${
-                activeTab === item.id ? "bg-purple-500" : "hover:bg-purple-700"
-              }`}
-            >
-              <item.icon size={20} />
-              {sidebarOpen && <span>{item.label}</span>}
-            </button>
-          ))}
-        </nav>
-
-        <div className="absolute bottom-8 left-4 right-4">
-          <button
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-purple-700 transition ${
-              !sidebarOpen ? "justify-center" : ""
-            }`}
-          >
-            <LogOut size={20} />
-            {sidebarOpen && <span>Logout</span>}
-          </button>
-        </div>
-      </div>
-
-      {/* Main Content */}
+      <Sidebar
+        isOpen={sidebarOpen}
+        setIsOpen={setSidebarOpen}
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        menuItems={menuItems}
+      />
       <div
         className={`${
           sidebarOpen ? "ml-64" : "ml-20"
         } flex-1 flex flex-col overflow-hidden transition-all duration-300`}
       >
-        {/* Header */}
-        <header className="bg-white border-b border-gray-200 px-8 py-6 shadow-sm">
-          <div className="flex items-center justify-between">
-            <h2 className="text-3xl font-bold text-gray-900">
-              {getPageTitle()}
-            </h2>
-            <div className="flex items-center gap-4">
-              <div className="relative">
-                <Search
-                  size={20}
-                  className="absolute left-3 top-3 text-gray-400"
-                />
-                <input
-                  type="text"
-                  placeholder="Search..."
-                  className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                />
-              </div>
-              <button className="p-2 hover:bg-gray-100 rounded-lg">
-                <Filter size={20} className="text-gray-600" />
-              </button>
-            </div>
-          </div>
-        </header>
-
-        {/* Content Area */}
+        <Header pageTitle={getPageTitle()} />
         <main className="flex-1 overflow-auto">
           <div className="p-8">{renderContent()}</div>
         </main>
       </div>
 
-      {/* Modal */}
       {showModal && (
         <Modal
           type={modalType}
           onClose={closeModal}
           onSubmit={
-            modalType === "create-card" ? handleCreateCard : handleCreateUser
+            modalType === "create-store" || modalType === "edit-store"
+              ? handleCreateStore
+              : handleCreateUser
           }
         />
       )}
