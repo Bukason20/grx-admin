@@ -252,6 +252,7 @@ export default function AdminDashboard({ setIsAuthenticated }) {
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         menuItems={menuItems}
+        handleLogout={handleLogout}
       />
       <div
         className={`${

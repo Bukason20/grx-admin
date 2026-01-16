@@ -1,6 +1,13 @@
 import { LogOut, X } from "lucide-react";
 
-function Sidebar({ isOpen, setIsOpen, activeTab, setActiveTab, menuItems }) {
+function Sidebar({
+  isOpen,
+  setIsOpen,
+  activeTab,
+  setActiveTab,
+  menuItems,
+  handleLogout,
+}) {
   return (
     <div
       className={`${
@@ -37,6 +44,7 @@ function Sidebar({ isOpen, setIsOpen, activeTab, setActiveTab, menuItems }) {
           className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-purple-700 transition ${
             !isOpen ? "justify-center" : ""
           }`}
+          onClick={handleLogout}
         >
           <LogOut size={20} />
           {isOpen && <span>Logout</span>}
