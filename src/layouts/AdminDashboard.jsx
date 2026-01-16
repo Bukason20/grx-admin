@@ -22,11 +22,20 @@ import Modal from "../components/Modal";
 import Sidebar from "../components/Sidebar";
 import Header from "../components/Header";
 
-export default function AdminDashboard() {
+export default function AdminDashboard({ setIsAuthenticated }) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [activeTab, setActiveTab] = useState("overview");
   const [showModal, setShowModal] = useState(false);
   const [modalType, setModalType] = useState(null);
+
+  const handleLogout = () => {
+    // Clear tokens
+    localStorage.removeItem("authToken");
+    localStorage.removeItem("refreshToken");
+
+    // Update auth state
+    setIsAuthenticated(false);
+  };
 
   const stats = [
     {

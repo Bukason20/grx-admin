@@ -1,13 +1,9 @@
 import React from "react";
-import AdminDashboard from "./layouts/AdminDashboard";
+import Routy from "./routes/Routy";
 import "./index.css";
 
 function App() {
-  return (
-    <div>
-      <AdminDashboard />
-    </div>
-  );
+  return <Routy />;
 }
 
 export default App;
