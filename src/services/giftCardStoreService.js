@@ -1,8 +1,11 @@
 import axiosInstance from "./api/axiosConfig";
 
 const giftCardStoreService = {
-  // Get all gift card stores
-  //
+  // Get all gift card stores - CORRECTED ENDPOINT
+  getAllStores: () => {
+    return axiosInstance.get("/admin/list-gift-stores/");
+  },
+
   // Get single gift card store
   getStoreById: (id) => {
     return axiosInstance.get(`/gift-card-stores/${id}/`);
@@ -10,7 +13,7 @@ const giftCardStoreService = {
 
   // Create gift card store
   createStore: (storeData) => {
-    return axiosInstance.post("/gift-card-stores/", storeData, {
+    return axiosInstance.post("/admin/create-gift-store/", storeData, {
       headers: {
         "Content-Type": "multipart/form-data",
       },
@@ -47,14 +50,14 @@ const giftCardStoreService = {
 
   // Get all stores with pagination
   getStoresWithPagination: (page = 1, pageSize = 10) => {
-    return axiosInstance.get("/gift-card-stores/", {
+    return axiosInstance.get("/admin/list-gift-stores/", {
       params: { page, page_size: pageSize },
     });
   },
 
   // Search stores
   searchStores: (searchTerm) => {
-    return axiosInstance.get("/gift-card-stores/", {
+    return axiosInstance.get("/admin/list-gift-stores/", {
       params: { search: searchTerm },
     });
   },

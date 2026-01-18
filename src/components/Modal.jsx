@@ -1,10 +1,17 @@
+// ============================================
+// Modal.jsx - FIXED (Cards as Array)
+// ============================================
 import React, { useState } from "react";
-import { X, Plus, Trash2 } from "lucide-react";
+import { X, Plus, Trash2, AlertCircle, CheckCircle } from "lucide-react";
+import giftCardStoreService from "../services/giftCardStoreService";
 
 function ModalComponent({ type, onClose, onSubmit }) {
   const [formData, setFormData] = useState({});
   const [giftCardList, setGiftCardList] = useState([""]);
   const [imagePreview, setImagePreview] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
 
   const formConfigs = {
     "create-store": {
@@ -75,59 +82,177 @@ function ModalComponent({ type, onClose, onSubmit }) {
 
   const config = formConfigs[type] || { title: "Form", fields: [] };
 
-  // Handle regular input change
   const handleChange = (fieldName) => (e) => {
     setFormData({ ...formData, [fieldName]: e.target.value });
   };
 
-  // Handle image file upload and preview
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
+      console.log("📸 Image selected:", {
+        name: file.name,
+        size: file.size,
+        type: file.type,
+      });
+
       const reader = new FileReader();
       reader.onloadend = () => {
         setImagePreview(reader.result);
-        setFormData({ ...formData, image: reader.result });
+        setFormData({ ...formData, image: file });
       };
       reader.readAsDataURL(file);
     }
   };
 
-  // Handle gift card name change
   const handleGiftCardChange = (index, value) => {
     const newList = [...giftCardList];
     newList[index] = value;
     setGiftCardList(newList);
   };
 
-  // Add new gift card field
   const addGiftCard = () => {
     setGiftCardList([...giftCardList, ""]);
   };
 
-  // Remove gift card field
   const removeGiftCard = (index) => {
     setGiftCardList(giftCardList.filter((_, i) => i !== index));
   };
 
-  // Handle form submission
-  const handleSubmit = () => {
-    if (type === "create-store" || type === "edit-store") {
-      onSubmit({
-        ...formData,
-        giftCards: giftCardList.filter((card) => card.trim()),
-      });
-    } else {
-      onSubmit(formData);
+  const logFormData = (formDataObj) => {
+    console.log("FormData Contents:");
+    console.log("====================");
+
+    for (let [key, value] of formDataObj.entries()) {
+      if (value instanceof File) {
+        console.log(`✓ ${key}:`, {
+          name: value.name,
+          size: value.size,
+          type: value.type,
+        });
+      } else {
+        console.log(`✓ ${key}:`, value);
+      }
     }
-    setImagePreview(null);
+    console.log("====================");
   };
 
-  // Reset modal when closing
+  const handleSubmit = async () => {
+    setError(null);
+    setSuccess(null);
+
+    if (type === "create-store" || type === "edit-store") {
+      // Validate required fields
+      if (!formData.name) {
+        setError("Store name is required");
+        return;
+      }
+      if (!formData.category) {
+        setError("Category is required");
+        return;
+      }
+      if (!formData.rate) {
+        setError("Rate is required");
+        return;
+      }
+      if (!formData.description) {
+        setError("Description is required");
+        return;
+      }
+
+      setLoading(true);
+
+      try {
+        // Create FormData for multipart/form-data
+        const formDataToSend = new FormData();
+
+        console.log("📝 Form Data Before Submission:", formData);
+        console.log("🎁 Gift Cards List:", giftCardList);
+
+        // Append basic fields
+        formDataToSend.append("name", formData.name);
+        formDataToSend.append("category", formData.category);
+        formDataToSend.append("rate", formData.rate);
+        formDataToSend.append("description", formData.description);
+
+        // Add image if it exists
+        if (formData.image instanceof File) {
+          console.log("✅ Image found, appending to FormData");
+          formDataToSend.append("image", formData.image);
+        } else {
+          console.log("⚠️ No image file found");
+        }
+
+        // ============================================
+        // FIX: Send cards as array of objects/dictionaries
+        // ============================================
+        const cardsToAdd = giftCardList
+          .filter((card) => card.trim())
+          .map((card) => ({
+            name: card.trim(), // Each card is now an object with 'name' property
+          }));
+
+        console.log("🎴 Cards to add:", cardsToAdd);
+
+        // CORRECT: Send as JSON array of objects
+        formDataToSend.append("cards", JSON.stringify(cardsToAdd));
+        console.log(
+          "✅ Cards appended as JSON array of objects:",
+          JSON.stringify(cardsToAdd)
+        );
+
+        // LOG THE COMPLETE FORMDATA
+        console.log("🚀 Complete FormData being sent:");
+        logFormData(formDataToSend);
+
+        let response;
+        if (type === "create-store") {
+          console.log("📤 Sending POST request to /admin/create-gift-store/");
+          response = await giftCardStoreService.createStore(formDataToSend);
+          console.log("✅ Success Response:", response.data);
+        } else {
+          console.log(`📤 Sending PUT request for store ID: ${formData.id}`);
+          response = await giftCardStoreService.updateStore(
+            formData.id,
+            formDataToSend
+          );
+          console.log("✅ Success Response:", response.data);
+        }
+
+        setSuccess("Store created successfully!");
+        setTimeout(() => {
+          onSubmit(response.data);
+          handleClose();
+        }, 1500);
+      } catch (err) {
+        console.error("❌ Error occurred:", {
+          status: err.response?.status,
+          statusText: err.response?.statusText,
+          data: err.response?.data,
+          message: err.message,
+        });
+
+        setError(
+          err.response?.data?.detail ||
+            err.response?.data?.message ||
+            err.message ||
+            "Failed to create store. Please try again."
+        );
+
+        setLoading(false);
+      }
+    } else {
+      // For non-store forms (users, etc)
+      onSubmit(formData);
+      handleClose();
+    }
+  };
+
   const handleClose = () => {
     setImagePreview(null);
     setFormData({});
     setGiftCardList([""]);
+    setError(null);
+    setSuccess(null);
     onClose();
   };
 
@@ -147,6 +272,22 @@ function ModalComponent({ type, onClose, onSubmit }) {
           </button>
         </div>
 
+        {/* Error Message */}
+        {error && (
+          <div className="mx-6 mt-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-3">
+            <AlertCircle size={20} className="text-red-600" />
+            <span className="text-red-700 text-sm">{error}</span>
+          </div>
+        )}
+
+        {/* Success Message */}
+        {success && (
+          <div className="mx-6 mt-4 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-3">
+            <CheckCircle size={20} className="text-green-600" />
+            <span className="text-green-700 text-sm">{success}</span>
+          </div>
+        )}
+
         {/* Modal Body */}
         <div className="px-6 py-4 space-y-4">
           {config.fields.map((field) => (
@@ -155,7 +296,6 @@ function ModalComponent({ type, onClose, onSubmit }) {
                 {field.label}
               </label>
 
-              {/* Select Input */}
               {field.type === "select" ? (
                 <select
                   value={formData[field.name] || ""}
@@ -170,8 +310,7 @@ function ModalComponent({ type, onClose, onSubmit }) {
                       </option>
                     ))}
                 </select>
-              ) : // {/* File Input for Image */}
-              field.type === "file" ? (
+              ) : field.type === "file" ? (
                 <div>
                   <input
                     type="file"
@@ -190,7 +329,6 @@ function ModalComponent({ type, onClose, onSubmit }) {
                   )}
                 </div>
               ) : (
-                // {/* Regular Text Input */}
                 <input
                   type={field.type}
                   placeholder={field.label}
@@ -202,7 +340,7 @@ function ModalComponent({ type, onClose, onSubmit }) {
             </div>
           ))}
 
-          {/* Gift Card Names Section - Only for Store Creation */}
+          {/* Gift Card Names Section */}
           {(type === "create-store" || type === "edit-store") && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -246,15 +384,17 @@ function ModalComponent({ type, onClose, onSubmit }) {
         <div className="px-6 py-4 border-t border-gray-200 flex gap-3 justify-end sticky bottom-0 bg-white">
           <button
             onClick={handleClose}
-            className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition"
+            disabled={loading}
+            className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition disabled:opacity-50"
           >
             Cancel
           </button>
           <button
             onClick={handleSubmit}
-            className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
+            disabled={loading}
+            className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition disabled:opacity-50"
           >
-            Save
+            {loading ? "Saving..." : "Save"}
           </button>
         </div>
       </div>

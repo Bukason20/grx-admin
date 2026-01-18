@@ -184,7 +184,7 @@ export default function LoginPage({ setAuthPage, onLoginSuccess }) {
           </button>
         </div>
 
-        <div className="relative my-6">
+        {/* <div className="relative my-6">
           <div className="absolute inset-0 flex items-center">
             <div className="w-full border-t border-gray-300"></div>
           </div>
@@ -200,7 +200,7 @@ export default function LoginPage({ setAuthPage, onLoginSuccess }) {
           className="w-full py-2 border-2 border-purple-600 text-purple-600 rounded-lg font-medium hover:bg-purple-50 transition"
         >
           Create Account
-        </button>
+        </button> */}
       </div>
     </div>
   );

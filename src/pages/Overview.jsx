@@ -1,7 +1,22 @@
 import React from "react";
 import StatsCard from "../components/StatsCard";
+import { Loader } from "lucide-react";
 
-const Overview = ({ stats, giftCardStores }) => {
+const Overview = ({ stats, giftCardStores, loading }) => {
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-center">
+          <Loader
+            size={40}
+            className="text-purple-600 animate-spin mx-auto mb-4"
+          />
+          <p className="text-gray-600">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -13,20 +28,28 @@ const Overview = ({ stats, giftCardStores }) => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow p-6 text-white">
           <h3 className="text-lg font-semibold mb-2">Top Performing Store</h3>
-          <p className="text-3xl font-bold">Amazon</p>
+          <p className="text-3xl font-bold">
+            {giftCardStores?.[0]?.name || "N/A"}
+          </p>
           <p className="text-blue-100 text-sm mt-2">
-            1,240 issued • 892 redeemed (72%)
+            {giftCardStores?.[0]?.cards?.length || 0} cards • $
+            {giftCardStores?.[0]?.rate || 0}
           </p>
         </div>
         <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow p-6 text-white">
-          <h3 className="text-lg font-semibold mb-2">This Month</h3>
-          <p className="text-3xl font-bold">$45,230</p>
-          <p className="text-green-100 text-sm mt-2">+12% from last month</p>
+          <h3 className="text-lg font-semibold mb-2">Total Stores</h3>
+          <p className="text-3xl font-bold">{giftCardStores?.length || 0}</p>
+          <p className="text-green-100 text-sm mt-2">Active stores</p>
         </div>
         <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl shadow p-6 text-white">
-          <h3 className="text-lg font-semibold mb-2">Redemption Rate</h3>
-          <p className="text-3xl font-bold">68%</p>
-          <p className="text-orange-100 text-sm mt-2">3,892 cards redeemed</p>
+          <h3 className="text-lg font-semibold mb-2">Total Gift Cards</h3>
+          <p className="text-3xl font-bold">
+            {giftCardStores?.reduce(
+              (sum, store) => sum + (store.cards?.length || 0),
+              0
+            ) || 0}
+          </p>
+          <p className="text-orange-100 text-sm mt-2">Across all stores</p>
         </div>
       </div>
 
@@ -73,7 +96,7 @@ const Overview = ({ stats, giftCardStores }) => {
                     ${store.rate}
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-600">
-                    {store.giftCards.length}
+                    {store.cards?.length || 0}
                   </td>
                   <td className="px-6 py-4 text-sm">
                     <span

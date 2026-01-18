@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   BarChart3,
   Users,
@@ -13,6 +13,7 @@ import {
   Eye,
   Search,
   Filter,
+  AlertCircle,
 } from "lucide-react";
 import Overview from "../pages/Overview";
 import GiftCards from "../pages/GiftCards";
@@ -21,21 +22,16 @@ import SettingsTab from "../pages/Settings";
 import Modal from "../components/Modal";
 import Sidebar from "../components/Sidebar";
 import Header from "../components/Header";
+import giftCardStoreService from "../services/giftCardStoreService";
 
 export default function AdminDashboard({ setIsAuthenticated }) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [activeTab, setActiveTab] = useState("overview");
   const [showModal, setShowModal] = useState(false);
   const [modalType, setModalType] = useState(null);
-
-  const handleLogout = () => {
-    // Clear tokens
-    localStorage.removeItem("authToken");
-    localStorage.removeItem("refreshToken");
-
-    // Update auth state
-    setIsAuthenticated(false);
-  };
+  const [giftCardStores, setGiftCardStores] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const stats = [
     {
@@ -67,45 +63,6 @@ export default function AdminDashboard({ setIsAuthenticated }) {
       color: "bg-orange-500",
     },
   ];
-
-  const [giftCardStores, setGiftCardStores] = useState([
-    {
-      id: 1,
-      name: "Amazon",
-      category: "Popular",
-      rate: 1000,
-      image: "🛍️",
-      description: "Amazon Gift Cards",
-      giftCards: ["$25", "$50", "$100"],
-      issued: 1240,
-      redeemed: 892,
-      status: "active",
-    },
-    {
-      id: 2,
-      name: "Apple Store",
-      category: "Popular",
-      rate: 500,
-      image: "🍎",
-      description: "Apple Store Gift Cards",
-      giftCards: ["$25", "$100"],
-      issued: 856,
-      redeemed: 634,
-      status: "active",
-    },
-    {
-      id: 3,
-      name: "Xbox Store",
-      category: "Shopping",
-      rate: 750,
-      image: "🎮",
-      description: "Xbox Game Pass",
-      giftCards: ["$30", "$60", "$150"],
-      issued: 432,
-      redeemed: 289,
-      status: "active",
-    },
-  ]);
 
   const [users, setUsers] = useState([
     {
@@ -162,6 +119,34 @@ export default function AdminDashboard({ setIsAuthenticated }) {
     { id: "settings", icon: Settings, label: "Settings" },
   ];
 
+  // Fetch gift card stores on component mount
+  useEffect(() => {
+    fetchGiftCardStores();
+  }, []);
+
+  const fetchGiftCardStores = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await giftCardStoreService.getAllStores();
+      setGiftCardStores(response.data);
+    } catch (err) {
+      setError(
+        err.response?.data?.detail ||
+          "Failed to fetch gift card stores. Please try again."
+      );
+      console.error("Error fetching stores:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("authToken");
+    localStorage.removeItem("refreshToken");
+    setIsAuthenticated(false);
+  };
+
   const getPageTitle = () => {
     const titles = {
       overview: "Overview",
@@ -182,21 +167,20 @@ export default function AdminDashboard({ setIsAuthenticated }) {
     setModalType(null);
   };
 
-  const handleCreateStore = (formData) => {
-    const newStore = {
-      id: giftCardStores.length + 1,
-      ...formData,
-      giftCards: formData.giftCards || [],
-      issued: 0,
-      redeemed: 0,
-      status: "active",
-    };
-    setGiftCardStores([...giftCardStores, newStore]);
+  const handleCreateStore = async (newStoreData) => {
+    // If it's from API, add it to the list
+    setGiftCardStores([...giftCardStores, newStoreData]);
     closeModal();
   };
 
-  const handleDeleteStore = (id) => {
-    setGiftCardStores(giftCardStores.filter((store) => store.id !== id));
+  const handleDeleteStore = async (id) => {
+    try {
+      await giftCardStoreService.deleteStore(id);
+      setGiftCardStores(giftCardStores.filter((store) => store.id !== id));
+    } catch (err) {
+      setError("Failed to delete store");
+      console.error("Error deleting store:", err);
+    }
   };
 
   const handleCreateUser = (formData) => {
@@ -218,7 +202,13 @@ export default function AdminDashboard({ setIsAuthenticated }) {
   const renderContent = () => {
     switch (activeTab) {
       case "overview":
-        return <Overview stats={stats} giftCardStores={giftCardStores} />;
+        return (
+          <Overview
+            stats={stats}
+            giftCardStores={giftCardStores}
+            loading={loading}
+          />
+        );
       case "giftcards":
         return (
           <GiftCards
@@ -226,11 +216,12 @@ export default function AdminDashboard({ setIsAuthenticated }) {
             onEdit={openModal}
             onDelete={handleDeleteStore}
             onCreate={() => openModal("create-store")}
+            loading={loading}
           />
         );
       case "users":
         return (
-          <Users
+          <UsersTab
             users={users}
             onEdit={openModal}
             onDelete={handleDeleteUser}
@@ -238,9 +229,15 @@ export default function AdminDashboard({ setIsAuthenticated }) {
           />
         );
       case "settings":
-        return <Settings />;
+        return <SettingsTab />;
       default:
-        return <Overview stats={stats} giftCardStores={giftCardStores} />;
+        return (
+          <Overview
+            stats={stats}
+            giftCardStores={giftCardStores}
+            loading={loading}
+          />
+        );
     }
   };
 
@@ -260,6 +257,21 @@ export default function AdminDashboard({ setIsAuthenticated }) {
         } flex-1 flex flex-col overflow-hidden transition-all duration-300`}
       >
         <Header pageTitle={getPageTitle()} />
+
+        {/* Error Banner */}
+        {error && (
+          <div className="mx-4 mt-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-3">
+            <AlertCircle size={20} className="text-red-600" />
+            <span className="text-red-700 text-sm">{error}</span>
+            <button
+              onClick={() => setError(null)}
+              className="ml-auto text-red-600 hover:text-red-800"
+            >
+              <X size={18} />
+            </button>
+          </div>
+        )}
+
         <main className="flex-1 overflow-auto">
           <div className="p-8">{renderContent()}</div>
         </main>
