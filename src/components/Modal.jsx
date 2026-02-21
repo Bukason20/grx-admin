@@ -1,54 +1,54 @@
-// ============================================
-// Modal.jsx - FIXED (Cards as Array)
-// ============================================
-import React, { useState } from "react";
-import { X, Plus, Trash2, AlertCircle, CheckCircle } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import {
+  X,
+  Plus,
+  Trash2,
+  AlertCircle,
+  CheckCircle,
+  Search,
+} from "lucide-react";
 import giftCardStoreService from "../services/giftCardStoreService";
 
-function ModalComponent({ type, onClose, onSubmit }) {
+function ModalComponent({ type, onClose, onSubmit, giftCardStores = [] }) {
   const [formData, setFormData] = useState({});
-  const [giftCardList, setGiftCardList] = useState([""]);
+  const [cards, setCards] = useState([{ type: "Both", name: "", rate: "" }]);
   const [imagePreview, setImagePreview] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
 
+  // For searchable store select (create-card)
+  const [storeSearchTerm, setStoreSearchTerm] = useState("");
+  const [showStoreDropdown, setShowStoreDropdown] = useState(false);
+  const [selectedStoreId, setSelectedStoreId] = useState(null);
+  const dropdownRef = useRef(null);
+
   const formConfigs = {
     "create-store": {
       title: "Create Gift Card Store",
       fields: [
-        { name: "name", label: "Store Name", type: "text" },
+        { name: "name", label: "Name", type: "text" },
+        { name: "image", label: "Image", type: "file" },
         {
           name: "category",
           label: "Category",
           type: "select",
           options: ["All", "Popular", "Shopping"],
         },
-        { name: "rate", label: "Rate ($)", type: "number" },
-        { name: "image", label: "Store Image", type: "file" },
-        { name: "description", label: "Description", type: "text" },
-      ],
-    },
-    "edit-store": {
-      title: "Edit Gift Card Store",
-      fields: [
-        { name: "name", label: "Store Name", type: "text" },
-        {
-          name: "category",
-          label: "Category",
-          type: "select",
-          options: ["All", "Popular", "Shopping"],
-        },
-        { name: "rate", label: "Rate ($)", type: "number" },
-        { name: "image", label: "Store Image", type: "file" },
-        { name: "description", label: "Description", type: "text" },
       ],
     },
     "create-card": {
       title: "Create Gift Card",
       fields: [
-        { name: "name", label: "Card Name", type: "text" },
-        { name: "storeId", label: "Store", type: "text" },
+        {
+          name: "type",
+          label: "Type",
+          type: "select",
+          options: ["Both", "Physical", "E-code"],
+        },
+        { name: "name", label: "Name", type: "text" },
+        { name: "rate", label: "Rate", type: "number" },
+        // Store field is handled separately with searchable select
       ],
     },
     "create-user": {
@@ -62,6 +62,19 @@ function ModalComponent({ type, onClose, onSubmit }) {
           label: "Status",
           type: "select",
           options: ["active", "inactive"],
+        },
+      ],
+    },
+    "edit-store": {
+      title: "Edit Gift Card Store",
+      fields: [
+        { name: "name", label: "Name", type: "text" },
+        { name: "image", label: "Image", type: "file" },
+        {
+          name: "category",
+          label: "Category",
+          type: "select",
+          options: ["All", "Popular", "Shopping"],
         },
       ],
     },
@@ -81,6 +94,18 @@ function ModalComponent({ type, onClose, onSubmit }) {
   };
 
   const config = formConfigs[type] || { title: "Form", fields: [] };
+
+  // Handle clicks outside dropdown
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setShowStoreDropdown(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const handleChange = (fieldName) => (e) => {
     setFormData({ ...formData, [fieldName]: e.target.value });
@@ -104,36 +129,30 @@ function ModalComponent({ type, onClose, onSubmit }) {
     }
   };
 
-  const handleGiftCardChange = (index, value) => {
-    const newList = [...giftCardList];
-    newList[index] = value;
-    setGiftCardList(newList);
+  const handleCardChange = (index, field, value) => {
+    const updatedCards = [...cards];
+    updatedCards[index] = { ...updatedCards[index], [field]: value };
+    setCards(updatedCards);
   };
 
-  const addGiftCard = () => {
-    setGiftCardList([...giftCardList, ""]);
+  const addCard = () => {
+    setCards([...cards, { type: "Both", name: "", rate: "" }]);
   };
 
-  const removeGiftCard = (index) => {
-    setGiftCardList(giftCardList.filter((_, i) => i !== index));
+  const removeCard = (index) => {
+    setCards(cards.filter((_, i) => i !== index));
   };
 
-  const logFormData = (formDataObj) => {
-    console.log("FormData Contents:");
-    console.log("====================");
+  // Filter stores based on search
+  const filteredStores = giftCardStores.filter((store) =>
+    store.name.toLowerCase().includes(storeSearchTerm.toLowerCase()),
+  );
 
-    for (let [key, value] of formDataObj.entries()) {
-      if (value instanceof File) {
-        console.log(`✓ ${key}:`, {
-          name: value.name,
-          size: value.size,
-          type: value.type,
-        });
-      } else {
-        console.log(`✓ ${key}:`, value);
-      }
-    }
-    console.log("====================");
+  const selectStore = (storeId, storeName) => {
+    setSelectedStoreId(storeId);
+    setFormData({ ...formData, store: storeId });
+    setStoreSearchTerm(storeName);
+    setShowStoreDropdown(false);
   };
 
   const handleSubmit = async () => {
@@ -150,29 +169,36 @@ function ModalComponent({ type, onClose, onSubmit }) {
         setError("Category is required");
         return;
       }
-      if (!formData.rate) {
-        setError("Rate is required");
+
+      // Validate at least one card
+      if (cards.length === 0) {
+        setError("Add at least one gift card");
         return;
       }
-      if (!formData.description) {
-        setError("Description is required");
-        return;
+
+      // Validate all cards have name and rate
+      for (let card of cards) {
+        if (!card.name) {
+          setError("All cards must have a name");
+          return;
+        }
+        if (!card.rate) {
+          setError("All cards must have a rate");
+          return;
+        }
       }
 
       setLoading(true);
 
       try {
-        // Create FormData for multipart/form-data
         const formDataToSend = new FormData();
 
         console.log("📝 Form Data Before Submission:", formData);
-        console.log("🎁 Gift Cards List:", giftCardList);
+        console.log("🎁 Cards List:", cards);
 
         // Append basic fields
         formDataToSend.append("name", formData.name);
         formDataToSend.append("category", formData.category);
-        formDataToSend.append("rate", formData.rate);
-        formDataToSend.append("description", formData.description);
 
         // Add image if it exists
         if (formData.image instanceof File) {
@@ -182,27 +208,17 @@ function ModalComponent({ type, onClose, onSubmit }) {
           console.log("⚠️ No image file found");
         }
 
-        // ============================================
-        // FIX: Send cards as array of objects/dictionaries
-        // ============================================
-        const cardsToAdd = giftCardList
-          .filter((card) => card.trim())
-          .map((card) => ({
-            name: card.trim(), // Each card is now an object with 'name' property
-          }));
+        // Send cards with all their properties
+        const cardsToAdd = cards.map((card) => ({
+          type: card.type || "Both",
+          name: card.name.trim(),
+          rate: parseFloat(card.rate),
+        }));
 
         console.log("🎴 Cards to add:", cardsToAdd);
 
-        // CORRECT: Send as JSON array of objects
         formDataToSend.append("cards", JSON.stringify(cardsToAdd));
-        console.log(
-          "✅ Cards appended as JSON array of objects:",
-          JSON.stringify(cardsToAdd)
-        );
-
-        // LOG THE COMPLETE FORMDATA
-        console.log("🚀 Complete FormData being sent:");
-        logFormData(formDataToSend);
+        console.log("✅ Cards appended as JSON:", JSON.stringify(cardsToAdd));
 
         let response;
         if (type === "create-store") {
@@ -213,35 +229,81 @@ function ModalComponent({ type, onClose, onSubmit }) {
           console.log(`📤 Sending PUT request for store ID: ${formData.id}`);
           response = await giftCardStoreService.updateStore(
             formData.id,
-            formDataToSend
+            formDataToSend,
           );
           console.log("✅ Success Response:", response.data);
         }
 
         setSuccess("Store created successfully!");
+
+        setTimeout(() => {
+          console.log("📦 Passing response.data to onSubmit:", response.data);
+          onSubmit(response.data);
+          handleClose();
+        }, 1500);
+      } catch (err) {
+        console.error("❌ Error occurred:", err);
+        setError(
+          err.response?.data?.detail ||
+            err.response?.data?.message ||
+            err.message ||
+            "Failed to create store. Please try again.",
+        );
+        setLoading(false);
+      }
+    } else if (type === "create-card") {
+      // Validate gift card fields
+      if (!formData.type) {
+        setError("Type is required");
+        return;
+      }
+      if (!formData.name) {
+        setError("Card name is required");
+        return;
+      }
+      if (!formData.rate) {
+        setError("Rate is required");
+        return;
+      }
+      if (!selectedStoreId) {
+        setError("Please select a store");
+        return;
+      }
+
+      setLoading(true);
+
+      try {
+        const giftCardData = {
+          type: formData.type,
+          name: formData.name,
+          rate: parseFloat(formData.rate),
+          store: selectedStoreId,
+        };
+
+        console.log("🎴 Gift Card Data:", giftCardData);
+
+        const response =
+          await giftCardStoreService.createGiftCard(giftCardData);
+        console.log("✅ Gift Card Created:", response.data);
+
+        setSuccess("Gift card created successfully!");
+
         setTimeout(() => {
           onSubmit(response.data);
           handleClose();
         }, 1500);
       } catch (err) {
-        console.error("❌ Error occurred:", {
-          status: err.response?.status,
-          statusText: err.response?.statusText,
-          data: err.response?.data,
-          message: err.message,
-        });
-
+        console.error("❌ Error creating gift card:", err);
         setError(
           err.response?.data?.detail ||
             err.response?.data?.message ||
             err.message ||
-            "Failed to create store. Please try again."
+            "Failed to create gift card. Please try again.",
         );
-
         setLoading(false);
       }
     } else {
-      // For non-store forms (users, etc)
+      // For non-store/card forms (users, etc)
       onSubmit(formData);
       handleClose();
     }
@@ -250,7 +312,9 @@ function ModalComponent({ type, onClose, onSubmit }) {
   const handleClose = () => {
     setImagePreview(null);
     setFormData({});
-    setGiftCardList([""]);
+    setCards([{ type: "Both", name: "", rate: "" }]);
+    setStoreSearchTerm("");
+    setSelectedStoreId(null);
     setError(null);
     setSuccess(null);
     onClose();
@@ -290,92 +354,245 @@ function ModalComponent({ type, onClose, onSubmit }) {
 
         {/* Modal Body */}
         <div className="px-6 py-4 space-y-4">
-          {config.fields.map((field) => (
-            <div key={field.name}>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                {field.label}
-              </label>
-
-              {field.type === "select" ? (
+          {/* CREATE CARD FORM - Different structure than other forms */}
+          {type && type === "create-card" ? (
+            <>
+              {/* Type Field */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Type
+                </label>
                 <select
-                  value={formData[field.name] || ""}
-                  onChange={handleChange(field.name)}
+                  value={formData.type || ""}
+                  onChange={handleChange("type")}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                 >
-                  <option value="">Select {field.label}</option>
-                  {field.options &&
-                    field.options.map((opt) => (
-                      <option key={opt} value={opt}>
-                        {opt}
-                      </option>
-                    ))}
+                  <option value="">Select Type</option>
+                  <option value="Both">Both</option>
+                  <option value="Physical">Physical</option>
+                  <option value="E-code">E-code</option>
                 </select>
-              ) : field.type === "file" ? (
-                <div>
+              </div>
+
+              {/* Name Field */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Name
+                </label>
+                <input
+                  type="text"
+                  placeholder="Enter gift card name"
+                  value={formData.name || ""}
+                  onChange={handleChange("name")}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                />
+              </div>
+
+              {/* Rate Field */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Rate
+                </label>
+                <input
+                  type="number"
+                  placeholder="Enter rate"
+                  step="0.01"
+                  min="0"
+                  value={formData.rate || ""}
+                  onChange={handleChange("rate")}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                />
+              </div>
+
+              {/* Searchable Store Select */}
+              <div ref={dropdownRef}>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Store
+                </label>
+                <div className="relative">
                   <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageChange}
+                    type="text"
+                    placeholder="Search and select a store..."
+                    value={storeSearchTerm}
+                    onChange={(e) => {
+                      setStoreSearchTerm(e.target.value);
+                      setShowStoreDropdown(true);
+                      setSelectedStoreId(null);
+                    }}
+                    onFocus={() => setShowStoreDropdown(true)}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                   />
-                  {imagePreview && (
-                    <div className="mt-4 flex justify-center">
-                      <img
-                        src={imagePreview}
-                        alt="Preview"
-                        className="w-32 h-32 object-cover rounded-lg border-2 border-purple-300 shadow-md"
-                      />
+
+                  {/* Dropdown */}
+                  {showStoreDropdown && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto">
+                      {filteredStores.length === 0 ? (
+                        <div className="px-4 py-3 text-gray-500 text-center text-sm">
+                          {giftCardStores.length === 0
+                            ? "No stores available"
+                            : "No stores found"}
+                        </div>
+                      ) : (
+                        filteredStores.map((store) => (
+                          <div
+                            key={store.id}
+                            onClick={() => selectStore(store.id, store.name)}
+                            className={`px-4 py-3 cursor-pointer transition ${
+                              selectedStoreId === store.id
+                                ? "bg-purple-100 text-purple-900"
+                                : "hover:bg-gray-100"
+                            }`}
+                          >
+                            {store.name}
+                          </div>
+                        ))
+                      )}
                     </div>
                   )}
                 </div>
-              ) : (
-                <input
-                  type={field.type}
-                  placeholder={field.label}
-                  value={formData[field.name] || ""}
-                  onChange={handleChange(field.name)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                />
-              )}
-            </div>
-          ))}
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Other form types - original logic */}
+              {config.fields.map((field) => (
+                <div key={field.name}>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    {field.label}
+                  </label>
 
-          {/* Gift Card Names Section */}
+                  {field.type === "select" ? (
+                    <select
+                      value={formData[field.name] || ""}
+                      onChange={handleChange(field.name)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    >
+                      <option value="">Select {field.label}</option>
+                      {field.options &&
+                        field.options.map((opt) => (
+                          <option key={opt} value={opt}>
+                            {opt}
+                          </option>
+                        ))}
+                    </select>
+                  ) : field.type === "file" ? (
+                    <div>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageChange}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      />
+                      {imagePreview && (
+                        <div className="mt-4 flex justify-center">
+                          <img
+                            src={imagePreview}
+                            alt="Preview"
+                            className="w-32 h-32 object-cover rounded-lg border-2 border-purple-300 shadow-md"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <input
+                      type={field.type}
+                      placeholder={field.label}
+                      value={formData[field.name] || ""}
+                      onChange={handleChange(field.name)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                  )}
+                </div>
+              ))}
+            </>
+          )}
+
+          {/* Gift Cards Section - For Store Creation */}
           {(type === "create-store" || type === "edit-store") && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Gift Card Names
+                Gift Cards
               </label>
-              <div className="space-y-2">
-                {giftCardList.map((card, index) => (
-                  <div key={index} className="flex gap-2">
-                    <input
-                      type="text"
-                      placeholder={`Card Name ${index + 1}`}
-                      value={card}
-                      onChange={(e) =>
-                        handleGiftCardChange(index, e.target.value)
-                      }
-                      className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    />
-                    {giftCardList.length > 1 && (
-                      <button
-                        onClick={() => removeGiftCard(index)}
-                        className="p-2 hover:bg-red-50 rounded text-red-600"
-                        title="Remove card"
+              <div className="border border-gray-300 rounded-lg p-4 bg-gray-50 space-y-4">
+                {cards.map((card, index) => (
+                  <div
+                    key={index}
+                    className="bg-white border border-gray-200 rounded-lg p-4 space-y-3"
+                  >
+                    {/* Card Type */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Type
+                      </label>
+                      <select
+                        value={card.type}
+                        onChange={(e) =>
+                          handleCardChange(index, "type", e.target.value)
+                        }
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
                       >
-                        <Trash2 size={18} />
+                        <option value="Both">Both</option>
+                        <option value="Physical">Physical</option>
+                        <option value="E-code">E-code</option>
+                      </select>
+                    </div>
+
+                    {/* Card Name */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Name
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Card name"
+                        value={card.name}
+                        onChange={(e) =>
+                          handleCardChange(index, "name", e.target.value)
+                        }
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
+                      />
+                    </div>
+
+                    {/* Card Rate */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Rate ($)
+                      </label>
+                      <input
+                        type="number"
+                        placeholder="Rate"
+                        step="0.01"
+                        min="0"
+                        value={card.rate}
+                        onChange={(e) =>
+                          handleCardChange(index, "rate", e.target.value)
+                        }
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
+                      />
+                    </div>
+
+                    {/* Remove Button */}
+                    {cards.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeCard(index)}
+                        className="w-full px-3 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition flex items-center justify-center gap-2 text-sm"
+                      >
+                        <Trash2 size={16} /> Remove Card
                       </button>
                     )}
                   </div>
                 ))}
+
+                {/* Add Card Button */}
+                <button
+                  type="button"
+                  onClick={addCard}
+                  className="w-full px-3 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition flex items-center justify-center gap-2 text-sm"
+                >
+                  <Plus size={16} /> Add Another Card
+                </button>
               </div>
-              <button
-                onClick={addGiftCard}
-                className="mt-2 px-3 py-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200 flex items-center gap-2 text-sm"
-              >
-                <Plus size={16} /> Add Gift Card
-              </button>
             </div>
           )}
         </div>

@@ -1,8 +1,24 @@
-import { Edit2, Eye, Plus, Trash2, AlertCircle, Loader } from "lucide-react";
+import {
+  Edit2,
+  Plus,
+  Trash2,
+  AlertCircle,
+  Loader,
+  ChevronDown,
+  ChevronRight,
+} from "lucide-react";
 import React, { useState } from "react";
 
-function GiftCards({ giftCardStores, onEdit, onDelete, onCreate, loading }) {
-  const [activeStoreId, setActiveStoreId] = useState(null);
+function GiftCards({
+  giftCardStores,
+  giftCards,
+  onEdit,
+  onDelete,
+  onDeleteCard,
+  onCreate,
+  loading,
+}) {
+  const [expandedStore, setExpandedStore] = useState(null);
 
   if (loading) {
     return (
@@ -23,7 +39,7 @@ function GiftCards({ giftCardStores, onEdit, onDelete, onCreate, loading }) {
       <div className="text-center py-12 bg-white rounded-xl shadow">
         <p className="text-gray-600 mb-4">No gift card stores found</p>
         <button
-          onClick={onCreate}
+          onClick={() => onCreate("create-store")}
           className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center gap-2 mx-auto"
         >
           <Plus size={18} /> Create First Store
@@ -32,163 +48,192 @@ function GiftCards({ giftCardStores, onEdit, onDelete, onCreate, loading }) {
     );
   }
 
+  // Get gift cards for a specific store
+  const getStoreGiftCards = (storeId) => {
+    return giftCards.filter((card) => card.store?.id === storeId);
+  };
+
   return (
     <div className="space-y-6">
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-2xl font-bold text-gray-900">Gift Card Stores</h3>
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <h3 className="text-2xl font-bold text-gray-900">
+          Gift Card Stores & Cards
+        </h3>
+        <div className="flex items-center gap-3">
           <button
-            onClick={onCreate}
+            onClick={() => onCreate("create-card")}
+            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2"
+          >
+            <Plus size={18} /> Create Gift Card
+          </button>
+          <button
+            onClick={() => onCreate("create-store")}
             className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center gap-2"
           >
             <Plus size={18} /> Create Store
           </button>
         </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {giftCardStores.map((store) => (
-            <div
-              key={store.id}
-              className="bg-white rounded-xl shadow hover:shadow-lg transition p-6 cursor-pointer"
-              onClick={() =>
-                setActiveStoreId(activeStoreId === store.id ? null : store.id)
-              }
-            >
-              <div className="flex items-start justify-between mb-4">
-                <div className="text-4xl">
-                  {store.image ? (
-                    <img
-                      src={store.image}
-                      alt={store.name}
-                      className="w-12 h-12 object-cover rounded"
-                    />
-                  ) : (
-                    <div className="w-12 h-12 bg-gray-200 rounded flex items-center justify-center text-2xl">
-                      📦
-                    </div>
-                  )}
-                </div>
-                <span
-                  className={`px-3 py-1 rounded-full text-xs font-medium ${
-                    store.status === "active"
-                      ? "bg-green-100 text-green-800"
-                      : "bg-gray-100 text-gray-800"
-                  }`}
-                >
-                  {store.status}
-                </span>
-              </div>
-              <h4 className="text-lg font-semibold text-gray-900">
-                {store.name}
-              </h4>
-              <p className="text-sm text-gray-600 mt-1">{store.description}</p>
-              <div className="mt-4 space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Category:</span>
-                  <span className="font-medium">{store.category}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Rate:</span>
-                  <span className="font-medium">${store.rate}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Gift Cards:</span>
-                  <span className="font-medium">
-                    {store.cards ? store.cards.length : 0}
-                  </span>
-                </div>
-              </div>
-              <div className="mt-4 flex gap-2">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onEdit("edit-store");
-                  }}
-                  className="flex-1 p-2 hover:bg-yellow-50 rounded text-yellow-600 text-sm"
-                >
-                  <Edit2 size={16} className="inline mr-1" /> Edit
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDelete(store.id);
-                  }}
-                  className="flex-1 p-2 hover:bg-red-50 rounded text-red-600 text-sm"
-                >
-                  <Trash2 size={16} className="inline mr-1" /> Delete
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
       </div>
 
-      {/* Gift Cards Table */}
-      {activeStoreId !== null && (
-        <div className="bg-white rounded-xl shadow overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-gray-900">
-              Gift Cards -{" "}
-              {giftCardStores.find((s) => s.id === activeStoreId)?.name}
-            </h3>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">
-                    Card Name
-                  </th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">
-                    Store
-                  </th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">
-                    Rate
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {(() => {
-                  const activeStore = giftCardStores.find(
-                    (s) => s.id === activeStoreId
-                  );
-                  const cards = activeStore?.cards || [];
+      {/* Stores List */}
+      <div className="space-y-3">
+        {giftCardStores.map((store) => {
+          const storeCards = getStoreGiftCards(store.id);
+          const isExpanded = expandedStore === store.id;
 
-                  if (cards.length === 0) {
-                    return (
-                      <tr>
-                        <td
-                          colSpan="3"
-                          className="px-6 py-4 text-center text-gray-600"
-                        >
-                          No gift cards in this store
-                        </td>
-                      </tr>
-                    );
-                  }
+          return (
+            <div
+              key={store.id}
+              className="bg-white rounded-xl shadow hover:shadow-lg transition"
+            >
+              {/* Store Header */}
+              <div
+                className="p-6 cursor-pointer flex items-center justify-between"
+                onClick={() => setExpandedStore(isExpanded ? null : store.id)}
+              >
+                <div className="flex items-center gap-4 flex-1">
+                  {/* Expand/Collapse Icon */}
+                  <div className="text-gray-400">
+                    {isExpanded ? (
+                      <ChevronDown size={20} />
+                    ) : (
+                      <ChevronRight size={20} />
+                    )}
+                  </div>
 
-                  return cards.map((card, idx) => (
-                    <tr
-                      key={idx}
-                      className="border-b border-gray-200 hover:bg-gray-50"
-                    >
-                      <td className="px-6 py-4 text-sm text-gray-900 font-medium">
-                        {card.name || card}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">
-                        {activeStore?.name}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">
-                        ${activeStore?.rate}
-                      </td>
-                    </tr>
-                  ));
-                })()}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+                  {/* Store Info */}
+                  <div className="flex-1">
+                    <h4 className="text-lg font-semibold text-gray-900">
+                      {store.name}
+                    </h4>
+                    <div className="flex items-center gap-4 mt-2 text-sm text-gray-600">
+                      <span>
+                        Category:{" "}
+                        <span className="font-medium text-gray-900">
+                          {store.category}
+                        </span>
+                      </span>
+                      <span>
+                        Gift Cards:{" "}
+                        <span className="font-medium text-gray-900">
+                          {storeCards.length}
+                        </span>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex gap-2">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEdit("edit-store");
+                    }}
+                    className="p-2 hover:bg-yellow-50 rounded text-yellow-600"
+                    title="Edit store"
+                  >
+                    <Edit2 size={18} />
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDelete(store.id);
+                    }}
+                    className="p-2 hover:bg-red-50 rounded text-red-600"
+                    title="Delete store"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Gift Cards Table - Expanded View */}
+              {isExpanded && (
+                <div className="border-t border-gray-200">
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-gray-50 border-b border-gray-200">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">
+                            Card Name
+                          </th>
+                          <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">
+                            Type
+                          </th>
+                          <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">
+                            Rate
+                          </th>
+                          <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">
+                            Actions
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {storeCards.length === 0 ? (
+                          <tr>
+                            <td
+                              colSpan="4"
+                              className="px-6 py-8 text-center text-gray-600"
+                            >
+                              <div className="flex flex-col items-center gap-3">
+                                <p>No gift cards for this store</p>
+                                <button
+                                  onClick={() => onCreate("create-card")}
+                                  className="px-3 py-1 text-sm bg-purple-100 text-purple-600 rounded hover:bg-purple-200"
+                                >
+                                  Add Gift Card
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ) : (
+                          storeCards.map((card) => (
+                            <tr
+                              key={card.id}
+                              className="border-b border-gray-200 hover:bg-gray-50"
+                            >
+                              <td className="px-6 py-4 text-sm text-gray-900 font-medium">
+                                {card.name}
+                              </td>
+                              <td className="px-6 py-4 text-sm text-gray-600">
+                                <span
+                                  className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                    card.type === "Both"
+                                      ? "bg-blue-100 text-blue-800"
+                                      : card.type === "Physical"
+                                        ? "bg-green-100 text-green-800"
+                                        : "bg-purple-100 text-purple-800"
+                                  }`}
+                                >
+                                  {card.type}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4 text-sm text-gray-600 font-medium">
+                                ${card.rate}
+                              </td>
+                              <td className="px-6 py-4 text-sm">
+                                <button
+                                  onClick={() => onDeleteCard(card.id)}
+                                  className="p-1 hover:bg-red-50 rounded text-red-600"
+                                  title="Delete card"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

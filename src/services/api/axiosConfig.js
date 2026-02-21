@@ -22,7 +22,7 @@ axiosInstance.interceptors.request.use(
   },
   (error) => {
     return Promise.reject(error);
-  }
+  },
 );
 
 // Add response interceptor
@@ -34,7 +34,7 @@ axiosInstance.interceptors.response.use(
       window.location.href = "/";
     }
     return Promise.reject(error);
-  }
+  },
 );
 
 export default axiosInstance;

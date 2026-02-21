@@ -1,14 +1,14 @@
 import axiosInstance from "./api/axiosConfig";
 
 const giftCardStoreService = {
-  // Get all gift card stores - CORRECTED ENDPOINT
+  // Get all gift card stores
   getAllStores: () => {
     return axiosInstance.get("/admin/list-gift-stores/");
   },
 
   // Get single gift card store
   getStoreById: (id) => {
-    return axiosInstance.get(`/gift-card-stores/${id}/`);
+    return axiosInstance.get(`/admin/get-gift-store/${id}/`);
   },
 
   // Create gift card store
@@ -41,6 +41,21 @@ const giftCardStoreService = {
   // Delete gift card store
   deleteStore: (id) => {
     return axiosInstance.delete(`/gift-card-stores/${id}/`);
+  },
+
+  // Get all gift cards
+  getAllGiftCards: () => {
+    return axiosInstance.get("/admin/list-gift-cards/");
+  },
+
+  // Create gift card
+  createGiftCard: (giftCardData) => {
+    return axiosInstance.post("/admin/create-gift-card/", giftCardData);
+  },
+
+  // Delete gift card
+  deleteGiftCard: (id) => {
+    return axiosInstance.delete(`/admin/delete-gift-card/${id}/`);
   },
 
   // Get store statistics

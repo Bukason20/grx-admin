@@ -1,4 +1,4 @@
-import { LogOut, X } from "lucide-react";
+import { LogOut, Menu, X } from "lucide-react";
 
 function Sidebar({
   isOpen,
