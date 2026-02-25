@@ -2,14 +2,21 @@ import React from "react";
 import StatsCard from "../components/StatsCard";
 import { Loader } from "lucide-react";
 
-const Overview = ({ stats, giftCardStores, loading }) => {
+const Overview = ({
+  stats,
+  giftCardStores,
+  giftCards,
+  users,
+  withdrawals,
+  loading,
+}) => {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="text-center">
           <Loader
             size={40}
-            className="text-purple-600 animate-spin mx-auto mb-4"
+            className="text-[#FF006A] animate-spin mx-auto mb-4"
           />
           <p className="text-gray-600">Loading dashboard...</p>
         </div>
@@ -17,42 +24,74 @@ const Overview = ({ stats, giftCardStores, loading }) => {
     );
   }
 
+  // Derived values from real data
+  const totalCards = giftCards?.length || 0;
+  const totalStores = giftCardStores?.length || 0;
+  const topStore = giftCardStores?.[0] || null;
+  const topStoreCardCount =
+    giftCards?.filter((c) => c.store?.id === topStore?.id).length || 0;
+
+  const pendingWithdrawals =
+    withdrawals?.filter((w) => w.status === "pending") || [];
+  const totalWithdrawalAmount = withdrawals?.reduce(
+    (sum, w) => sum + parseFloat(w.amount || 0),
+    0,
+  );
+
+  const recentUsers = users?.slice(0, 5) || [];
+  const recentStores = giftCardStores?.slice(0, 5) || [];
+
   return (
     <div className="space-y-8">
+      {/* ── Stats Cards ─────────────────────────────────────────── */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {stats.map((stat, idx) => (
           <StatsCard key={idx} {...stat} />
         ))}
       </div>
 
+      {/* ── Summary Highlight Cards ──────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Top Store */}
         <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow p-6 text-white">
-          <h3 className="text-lg font-semibold mb-2">Top Performing Store</h3>
-          <p className="text-3xl font-bold">
-            {giftCardStores?.[0]?.name || "N/A"}
+          <h3 className="text-lg font-semibold mb-2">Top Store</h3>
+          <p className="text-3xl font-bold truncate">
+            {topStore?.name || "N/A"}
           </p>
           <p className="text-blue-100 text-sm mt-2">
-            {giftCardStores?.[0]?.cards?.length || 0} cards • $
-            {giftCardStores?.[0]?.rate || 0}
+            {topStoreCardCount} gift card{topStoreCardCount !== 1 ? "s" : ""} •{" "}
+            {topStore?.category || "—"}
           </p>
         </div>
+
+        {/* Total Stores */}
         <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow p-6 text-white">
           <h3 className="text-lg font-semibold mb-2">Total Stores</h3>
-          <p className="text-3xl font-bold">{giftCardStores?.length || 0}</p>
-          <p className="text-green-100 text-sm mt-2">Active stores</p>
-        </div>
-        <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl shadow p-6 text-white">
-          <h3 className="text-lg font-semibold mb-2">Total Gift Cards</h3>
-          <p className="text-3xl font-bold">
-            {giftCardStores?.reduce(
-              (sum, store) => sum + (store.cards?.length || 0),
-              0
-            ) || 0}
+          <p className="text-3xl font-bold">{totalStores}</p>
+          <p className="text-green-100 text-sm mt-2">
+            {totalCards} total gift card{totalCards !== 1 ? "s" : ""} across all
+            stores
           </p>
-          <p className="text-orange-100 text-sm mt-2">Across all stores</p>
+        </div>
+
+        {/* Withdrawals */}
+        <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl shadow p-6 text-white">
+          <h3 className="text-lg font-semibold mb-2">Withdrawals</h3>
+          <p className="text-3xl font-bold">
+            $
+            {totalWithdrawalAmount?.toLocaleString(undefined, {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })}
+          </p>
+          <p className="text-orange-100 text-sm mt-2">
+            {pendingWithdrawals.length} pending withdrawal
+            {pendingWithdrawals.length !== 1 ? "s" : ""}
+          </p>
         </div>
       </div>
 
+      {/* ── Recent Gift Card Stores Table ────────────────────────── */}
       <div className="bg-white rounded-xl shadow overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200">
           <h3 className="text-lg font-semibold text-gray-900">
@@ -60,59 +99,131 @@ const Overview = ({ stats, giftCardStores, loading }) => {
           </h3>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">
-                  Store Name
-                </th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">
-                  Category
-                </th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">
-                  Rate
-                </th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">
-                  Cards
-                </th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">
-                  Status
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {giftCardStores?.slice(0, 3).map((store) => (
-                <tr
-                  key={store.id}
-                  className="border-b border-gray-200 hover:bg-gray-50"
-                >
-                  <td className="px-6 py-4 text-sm text-gray-900 font-medium">
-                    {store.name}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-600">
-                    {store.category}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-600">
-                    ${store.rate}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-600">
-                    {store.cards?.length || 0}
-                  </td>
-                  <td className="px-6 py-4 text-sm">
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs font-medium ${
-                        store.status === "active"
-                          ? "bg-green-100 text-green-800"
-                          : "bg-gray-100 text-gray-800"
-                      }`}
-                    >
-                      {store.status}
-                    </span>
-                  </td>
+          {recentStores.length === 0 ? (
+            <div className="px-6 py-10 text-center text-gray-500">
+              No stores found.
+            </div>
+          ) : (
+            <table className="w-full">
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">
+                    Store Name
+                  </th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">
+                    Category
+                  </th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">
+                    Gift Cards
+                  </th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">
+                    Status
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {recentStores.map((store) => {
+                  const cardCount =
+                    giftCards?.filter((c) => c.store?.id === store.id).length ||
+                    store.cards?.length ||
+                    0;
+                  return (
+                    <tr
+                      key={store.id}
+                      className="border-b border-gray-200 hover:bg-gray-50"
+                    >
+                      <td className="px-6 py-4 text-sm text-gray-900 font-medium">
+                        {store.name}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-600">
+                        {store.category || "—"}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-600">
+                        {cardCount}
+                      </td>
+                      <td className="px-6 py-4 text-sm">
+                        <span
+                          className={`px-3 py-1 rounded-full text-xs font-medium ${
+                            store.status === "active"
+                              ? "bg-green-100 text-green-800"
+                              : "bg-gray-100 text-gray-800"
+                          }`}
+                        >
+                          {store.status || "active"}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+
+      {/* ── Recent Users Table ───────────────────────────────────── */}
+      <div className="bg-white rounded-xl shadow overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-900">Recent Users</h3>
+        </div>
+        <div className="overflow-x-auto">
+          {recentUsers.length === 0 ? (
+            <div className="px-6 py-10 text-center text-gray-500">
+              No users found.
+            </div>
+          ) : (
+            <table className="w-full">
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">
+                    Name
+                  </th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">
+                    Email
+                  </th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">
+                    Phone
+                  </th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">
+                    Level
+                  </th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">
+                    Transaction Limit
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {recentUsers.map((user) => (
+                  <tr
+                    key={user.id}
+                    className="border-b border-gray-200 hover:bg-gray-50"
+                  >
+                    <td className="px-6 py-4 text-sm text-gray-900 font-medium">
+                      {user.full_name || "—"}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-600">
+                      {user.email || "—"}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-600">
+                      {user.phone_number || "—"}
+                    </td>
+                    <td className="px-6 py-4 text-sm">
+                      <span className="px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                        {user.level || "—"}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-600 font-medium">
+                      $
+                      {parseFloat(user.transaction_limit || 0).toLocaleString(
+                        undefined,
+                        { minimumFractionDigits: 2, maximumFractionDigits: 2 },
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
     </div>

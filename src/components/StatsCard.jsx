@@ -2,7 +2,7 @@ import React from "react";
 
 const StatsCard = ({ label, value, change, icon: Icon, color }) => {
   return (
-    <div className="bg-white rounded-xl shadow p-6 border-l-4 border-purple-500">
+    <div className="bg-white rounded-xl shadow p-6 border-l-4 border-[#FF006A]">
       <div className="flex items-start justify-between">
         <div>
           <p className="text-gray-600 text-sm font-medium">{label}</p>

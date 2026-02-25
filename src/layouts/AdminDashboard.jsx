@@ -7,6 +7,7 @@ import {
   X,
   AlertCircle,
   CreditCard,
+  DollarSign,
 } from "lucide-react";
 import Overview from "../pages/Overview";
 import GiftCards from "../pages/GiftCards";
@@ -16,135 +17,158 @@ import Modal from "../components/Modal";
 import Sidebar from "../components/Sidebar";
 import Header from "../components/Header";
 import giftCardStoreService from "../services/giftCardStoreService";
+import accountUpgradeService from "../services/accountUpgradeService";
+import withdrawalService from "../services/withdrawalService";
+import userService from "../services/userService";
 import AccountUpgrades from "../pages/AccountUpgrades";
+import Withdrawals from "../pages/Withdrawals";
 
 export default function AdminDashboard({ setIsAuthenticated }) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [activeTab, setActiveTab] = useState("overview");
   const [showModal, setShowModal] = useState(false);
   const [modalType, setModalType] = useState(null);
+  const [modalEditData, setModalEditData] = useState(null);
+
+  // ── API data ─────────────────────────────────────────────────────
   const [giftCardStores, setGiftCardStores] = useState([]);
   const [giftCards, setGiftCards] = useState([]);
+  const [users, setUsers] = useState([]);
   const [level2Requests, setLevel2Requests] = useState([]);
   const [level3Requests, setLevel3Requests] = useState([]);
+  const [withdrawals, setWithdrawals] = useState([]);
+  const [selectedWithdrawalId, setSelectedWithdrawalId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  const stats = [
-    {
-      label: "Total Users",
-      value: "2,543",
-      change: "+12%",
-      icon: Users,
-      color: "bg-blue-500",
-    },
-    {
-      label: "Active Gift Cards",
-      value: "8,456",
-      change: "+8%",
-      icon: Gift,
-      color: "bg-purple-500",
-    },
-    {
-      label: "Revenue",
-      value: "$125,430",
-      change: "+23%",
-      icon: BarChart3,
-      color: "bg-green-500",
-    },
-    {
-      label: "Redemptions",
-      value: "3,892",
-      change: "+5%",
-      icon: Gift,
-      color: "bg-orange-500",
-    },
-  ];
-
-  const [users, setUsers] = useState([
-    {
-      id: 1,
-      name: "Jane Cooper",
-      email: "jane@microsoft.com",
-      cards: 3,
-      spent: "$450",
-      joinDate: "2024-01-15",
-      status: "active",
-    },
-    {
-      id: 2,
-      name: "Floyd Miles",
-      email: "floyd@yahoo.com",
-      cards: 5,
-      spent: "$1,200",
-      joinDate: "2023-12-20",
-      status: "active",
-    },
-    {
-      id: 3,
-      name: "Ronald Richards",
-      email: "ronald@adobe.com",
-      cards: 2,
-      spent: "$320",
-      joinDate: "2024-02-10",
-      status: "active",
-    },
-    {
-      id: 4,
-      name: "Marvin McKinney",
-      email: "marvin@tesla.com",
-      cards: 1,
-      spent: "$100",
-      joinDate: "2024-01-25",
-      status: "inactive",
-    },
-    {
-      id: 5,
-      name: "Jerome Bell",
-      email: "jerome@yahoo.com",
-      cards: 4,
-      spent: "$680",
-      joinDate: "2023-11-30",
-      status: "active",
-    },
-  ]);
 
   const menuItems = [
     { id: "overview", icon: BarChart3, label: "Overview" },
     { id: "giftcards", icon: Gift, label: "Gift Cards" },
     { id: "upgrades", icon: CreditCard, label: "Upgrades" },
+    { id: "withdrawals", icon: DollarSign, label: "Withdrawals" },
     { id: "users", icon: Users, label: "Users" },
     { id: "settings", icon: Settings, label: "Settings" },
   ];
 
-  // Fetch gift card stores and cards on component mount
   useEffect(() => {
-    fetchData();
+    fetchAllData();
   }, []);
 
-  const fetchData = async () => {
+  // Fetch everything at once using allSettled so a single failure
+  // doesn't block the rest of the dashboard from loading
+  const fetchAllData = async () => {
     setLoading(true);
     setError(null);
     try {
-      // Fetch stores
-      const storesResponse = await giftCardStoreService.getAllStores();
-      console.log("✅ Stores fetched:", storesResponse.data);
-      setGiftCardStores(storesResponse.data);
+      const [
+        storesRes,
+        cardsRes,
+        usersRes,
+        level2Res,
+        level3Res,
+        withdrawalsRes,
+      ] = await Promise.allSettled([
+        giftCardStoreService.getAllStores(),
+        giftCardStoreService.getAllGiftCards(),
+        userService.getAllUsers(),
+        accountUpgradeService.getPendingLevel2Requests(),
+        accountUpgradeService.getPendingLevel3Requests(),
+        withdrawalService.getAllWithdrawals(),
+      ]);
 
-      // Fetch gift cards
-      const cardsResponse = await giftCardStoreService.getAllGiftCards();
-      console.log("✅ Gift cards fetched:", cardsResponse.data);
-      setGiftCards(cardsResponse.data);
+      if (storesRes.status === "fulfilled") {
+        setGiftCardStores(storesRes.value.data);
+      } else {
+        console.error("❌ Stores:", storesRes.reason);
+      }
+
+      if (cardsRes.status === "fulfilled") {
+        setGiftCards(cardsRes.value.data);
+      } else {
+        console.error("❌ Gift cards:", cardsRes.reason);
+      }
+
+      if (usersRes.status === "fulfilled") {
+        setUsers(usersRes.value.data);
+      } else {
+        console.error("❌ Users:", usersRes.reason);
+      }
+
+      if (level2Res.status === "fulfilled") {
+        setLevel2Requests(level2Res.value.data);
+        console.log(level2Res.value.data);
+      } else {
+        console.error("❌ Level 2 requests:", level2Res.reason);
+      }
+
+      if (level3Res.status === "fulfilled") {
+        setLevel3Requests(level3Res.value.data);
+      } else {
+        console.error("❌ Level 3 requests:", level3Res.reason);
+      }
+
+      if (withdrawalsRes.status === "fulfilled") {
+        setWithdrawals(withdrawalsRes.value.data);
+      } else {
+        console.error("❌ Withdrawals:", withdrawalsRes.reason);
+      }
     } catch (err) {
-      setError(
-        err.response?.data?.detail || "Failed to fetch data. Please try again.",
-      );
-      console.error("Error fetching data:", err);
+      setError("Failed to load dashboard data. Please try again.");
+      console.error("❌ fetchAllData:", err);
     } finally {
       setLoading(false);
     }
   };
 
+  // Targeted refresh after any gift card store or card mutation.
+  // Always fetches fresh data from the server — never patches local state.
+  const fetchGiftCardData = async () => {
+    try {
+      const [storesRes, cardsRes] = await Promise.all([
+        giftCardStoreService.getAllStores(),
+        giftCardStoreService.getAllGiftCards(),
+      ]);
+      setGiftCardStores(storesRes.data);
+      setGiftCards(cardsRes.data);
+    } catch (err) {
+      setError("Failed to refresh gift card data.");
+      console.error("❌ fetchGiftCardData:", err);
+    }
+  };
+
+  // ── Stats computed from real API data ────────────────────────────
+  const pendingWithdrawals = withdrawals.filter(
+    (w) => w.status === "pending",
+  ).length;
+
+  const stats = [
+    {
+      label: "Total Users",
+      value: users.length.toLocaleString(),
+      icon: Users,
+      color: "bg-blue-500",
+    },
+    {
+      label: "Active Gift Cards",
+      value: giftCards.length.toLocaleString(),
+      icon: Gift,
+      color: "bg-purple-500",
+    },
+    {
+      label: "Pending Upgrades",
+      value: (level2Requests.length + level3Requests.length).toLocaleString(),
+      icon: CreditCard,
+      color: "bg-green-500",
+    },
+    {
+      label: "Pending Withdrawals",
+      value: pendingWithdrawals.toLocaleString(),
+      icon: DollarSign,
+      color: "bg-orange-500",
+    },
+  ];
+
+  // ── Auth ─────────────────────────────────────────────────────────
   const handleLogout = () => {
     localStorage.removeItem("authToken");
     localStorage.removeItem("refreshToken");
@@ -156,97 +180,115 @@ export default function AdminDashboard({ setIsAuthenticated }) {
       overview: "Overview",
       giftcards: "Gift Cards",
       upgrades: "Account Upgrades",
+      withdrawals: "Withdrawals",
       users: "Users",
       settings: "Settings",
     };
     return titles[activeTab] || "Dashboard";
   };
 
-  const openModal = (type) => {
+  // ── Modal ────────────────────────────────────────────────────────
+  const openModal = (type, editData = null) => {
     setModalType(type);
+    setModalEditData(editData);
     setShowModal(true);
   };
 
   const closeModal = () => {
     setShowModal(false);
     setModalType(null);
+    setModalEditData(null);
   };
 
-  const handleCreateStore = async (newStoreData) => {
+  // ── Gift Card Store handlers ─────────────────────────────────────
+  // Modal.jsx calls onSubmit(response.data) after the API succeeds.
+  // These handlers re-fetch fresh data from the server then close —
+  // never manually patch local state to avoid stale/partial data.
+
+  const handleCreateStore = async () => {
     try {
-      const storeToAdd = {
-        id: newStoreData.id || Date.now(),
-        name: newStoreData.name,
-        category: newStoreData.category,
-        image: newStoreData.image || null,
-        cards: newStoreData.cards || [],
-        status: newStoreData.status || "active",
-      };
-
-      console.log("✅ Adding store to state:", storeToAdd);
-
-      setGiftCardStores([...giftCardStores, storeToAdd]);
+      await fetchGiftCardData();
       closeModal();
       setError(null);
     } catch (err) {
-      console.error("❌ Error handling store creation:", err);
-      setError("Failed to add store to list. Please try again.");
+      console.error("❌ handleCreateStore refresh:", err);
+      setError("Store created but failed to refresh. Please reload.");
+    }
+  };
+
+  const handleUpdateStore = async () => {
+    try {
+      await fetchGiftCardData();
+      closeModal();
+      setError(null);
+    } catch (err) {
+      console.error("❌ handleUpdateStore refresh:", err);
+      setError("Store updated but failed to refresh. Please reload.");
     }
   };
 
   const handleDeleteStore = async (id) => {
     try {
       await giftCardStoreService.deleteStore(id);
-      setGiftCardStores(giftCardStores.filter((store) => store.id !== id));
+      // Optimistic removal is safe for deletes — nothing to reconstruct
+      setGiftCardStores((prev) => prev.filter((store) => store.id !== id));
     } catch (err) {
-      setError("Failed to delete store");
-      console.error("Error deleting store:", err);
+      setError("Failed to delete store.");
+      console.error("❌ handleDeleteStore:", err);
+    }
+  };
+
+  // ── Gift Card handlers ───────────────────────────────────────────
+  const handleCreateCard = async () => {
+    try {
+      await fetchGiftCardData();
+      closeModal();
+      setError(null);
+    } catch (err) {
+      console.error("❌ handleCreateCard refresh:", err);
+      setError("Card created but failed to refresh. Please reload.");
+    }
+  };
+
+  const handleUpdateGiftCard = async () => {
+    try {
+      await fetchGiftCardData();
+      closeModal();
+      setError(null);
+    } catch (err) {
+      console.error("❌ handleUpdateGiftCard refresh:", err);
+      setError("Card updated but failed to refresh. Please reload.");
     }
   };
 
   const handleDeleteGiftCard = async (id) => {
     try {
       await giftCardStoreService.deleteGiftCard(id);
-      setGiftCards(giftCards.filter((card) => card.id !== id));
+      setGiftCards((prev) => prev.filter((card) => card.id !== id));
     } catch (err) {
-      setError("Failed to delete gift card");
-      console.error("Error deleting gift card:", err);
+      setError("Failed to delete gift card.");
+      console.error("❌ handleDeleteGiftCard:", err);
     }
   };
 
-  const handleCreateUser = (formData) => {
-    const newUser = {
-      id: users.length + 1,
-      ...formData,
-      cards: 0,
-      spent: "$0",
-      joinDate: new Date().toISOString().split("T")[0],
-    };
-    setUsers([...users, newUser]);
-    closeModal();
-  };
-
-  const handleDeleteUser = (id) => {
-    setUsers(users.filter((user) => user.id !== id));
-  };
-
+  // ── Upgrade handlers ─────────────────────────────────────────────
   const handleApproveUpgrade = async (credentialId, level) => {
     try {
       if (level === 2) {
         await accountUpgradeService.approveLevel2(credentialId);
-        setLevel2Requests(
-          level2Requests.filter((req) => req.id !== credentialId),
+        setLevel2Requests((prev) =>
+          prev.filter((req) => req.id !== credentialId),
         );
       } else {
         await accountUpgradeService.approveLevel3(credentialId);
-        setLevel3Requests(
-          level3Requests.filter((req) => req.id !== credentialId),
+        setLevel3Requests((prev) =>
+          prev.filter((req) => req.id !== credentialId),
         );
       }
       setError(null);
     } catch (err) {
-      setError(`Failed to approve level ${level} upgrade`);
-      console.error("Error approving upgrade:", err);
+      setError(`Failed to approve level ${level} upgrade.`);
+      console.error("❌ handleApproveUpgrade:", err);
     }
   };
 
@@ -254,22 +296,34 @@ export default function AdminDashboard({ setIsAuthenticated }) {
     try {
       if (level === 2) {
         await accountUpgradeService.rejectLevel2(credentialId);
-        setLevel2Requests(
-          level2Requests.filter((req) => req.id !== credentialId),
+        setLevel2Requests((prev) =>
+          prev.filter((req) => req.id !== credentialId),
         );
       } else {
         await accountUpgradeService.rejectLevel3(credentialId);
-        setLevel3Requests(
-          level3Requests.filter((req) => req.id !== credentialId),
+        setLevel3Requests((prev) =>
+          prev.filter((req) => req.id !== credentialId),
         );
       }
       setError(null);
     } catch (err) {
-      setError(`Failed to reject level ${level} upgrade`);
-      console.error("Error rejecting upgrade:", err);
+      setError(`Failed to reject level ${level} upgrade.`);
+      console.error("❌ handleRejectUpgrade:", err);
     }
   };
 
+  // ── Modal submit router ──────────────────────────────────────────
+  // Modal calls onSubmit(response.data) after API succeeds.
+  // Each handler re-fetches from API and closes — no race conditions.
+  const getModalSubmitHandler = () => {
+    if (modalType === "create-store") return handleCreateStore;
+    if (modalType === "edit-store") return handleUpdateStore;
+    if (modalType === "create-card") return handleCreateCard;
+    if (modalType === "edit-card") return handleUpdateGiftCard;
+    return () => closeModal();
+  };
+
+  // ── Tab renderer ─────────────────────────────────────────────────
   const renderContent = () => {
     switch (activeTab) {
       case "overview":
@@ -277,6 +331,9 @@ export default function AdminDashboard({ setIsAuthenticated }) {
           <Overview
             stats={stats}
             giftCardStores={giftCardStores}
+            giftCards={giftCards}
+            users={users}
+            withdrawals={withdrawals}
             loading={loading}
           />
         );
@@ -302,13 +359,24 @@ export default function AdminDashboard({ setIsAuthenticated }) {
             loading={loading}
           />
         );
+      case "withdrawals":
+        return (
+          <Withdrawals
+            withdrawals={withdrawals}
+            onViewDetails={(id) => setSelectedWithdrawalId(id)}
+            loading={loading}
+          />
+        );
       case "users":
         return (
           <UsersTab
             users={users}
             onEdit={openModal}
-            onDelete={handleDeleteUser}
+            onDelete={(id) =>
+              setUsers((prev) => prev.filter((u) => u.id !== id))
+            }
             onCreate={() => openModal("create-user")}
+            loading={loading}
           />
         );
       case "settings":
@@ -318,6 +386,9 @@ export default function AdminDashboard({ setIsAuthenticated }) {
           <Overview
             stats={stats}
             giftCardStores={giftCardStores}
+            giftCards={giftCards}
+            users={users}
+            withdrawals={withdrawals}
             loading={loading}
           />
         );
@@ -363,18 +434,9 @@ export default function AdminDashboard({ setIsAuthenticated }) {
       {showModal && (
         <Modal
           type={modalType}
+          editData={modalEditData}
           onClose={closeModal}
-          onSubmit={
-            modalType === "create-store" || modalType === "edit-store"
-              ? handleCreateStore
-              : modalType === "create-card"
-                ? (data) => {
-                    // After creating a gift card, refetch the data
-                    fetchData();
-                    closeModal();
-                  }
-                : handleCreateUser
-          }
+          onSubmit={getModalSubmitHandler()}
           giftCardStores={giftCardStores}
         />
       )}

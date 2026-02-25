@@ -12,13 +12,13 @@ function Sidebar({
     <div
       className={`${
         isOpen ? "w-64" : "w-20"
-      } bg-gradient-to-b from-purple-600 to-purple-800 text-white transition-all duration-300 fixed h-screen overflow-y-auto shadow-lg`}
+      } bg-[#FF006A] text-white transition-all duration-300 fixed h-screen overflow-y-auto shadow-lg`}
     >
       <div className="p-6 flex items-center justify-between">
-        {isOpen && <h1 className="text-2xl font-bold">GiftCard</h1>}
+        {isOpen && <h1 className="text-2xl font-bold mx-auto">GRX</h1>}
         <button
           onClick={() => setIsOpen(!isOpen)}
-          className="hover:bg-purple-700 p-2 rounded"
+          className="hover:bg-[#FF006A] p-2 rounded"
         >
           {isOpen ? <X size={20} /> : <Menu size={20} />}
         </button>
@@ -30,7 +30,7 @@ function Sidebar({
             key={item.id}
             onClick={() => setActiveTab(item.id)}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition ${
-              activeTab === item.id ? "bg-purple-500" : "hover:bg-purple-700"
+              activeTab === item.id ? "bg-[#f06ea5]" : "hover:bg-[#f06ea5]"
             }`}
           >
             <item.icon size={20} />

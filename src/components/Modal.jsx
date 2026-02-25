@@ -5,11 +5,17 @@ import {
   Trash2,
   AlertCircle,
   CheckCircle,
-  Search,
+  Loader,
 } from "lucide-react";
 import giftCardStoreService from "../services/giftCardStoreService";
 
-function ModalComponent({ type, onClose, onSubmit, giftCardStores = [] }) {
+function ModalComponent({
+  type,
+  onClose,
+  onSubmit,
+  giftCardStores = [],
+  editData = null,
+}) {
   const [formData, setFormData] = useState({});
   const [cards, setCards] = useState([{ type: "Both", name: "", rate: "" }]);
   const [imagePreview, setImagePreview] = useState(null);
@@ -17,7 +23,7 @@ function ModalComponent({ type, onClose, onSubmit, giftCardStores = [] }) {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
 
-  // For searchable store select (create-card)
+  // For searchable store select (create-card / edit-card)
   const [storeSearchTerm, setStoreSearchTerm] = useState("");
   const [showStoreDropdown, setShowStoreDropdown] = useState(false);
   const [selectedStoreId, setSelectedStoreId] = useState(null);
@@ -37,19 +43,26 @@ function ModalComponent({ type, onClose, onSubmit, giftCardStores = [] }) {
         },
       ],
     },
+    "edit-store": {
+      title: "Edit Gift Card Store",
+      fields: [
+        { name: "name", label: "Name", type: "text" },
+        { name: "image", label: "Image", type: "file" },
+        {
+          name: "category",
+          label: "Category",
+          type: "select",
+          options: ["All", "Popular", "Shopping"],
+        },
+      ],
+    },
     "create-card": {
       title: "Create Gift Card",
-      fields: [
-        {
-          name: "type",
-          label: "Type",
-          type: "select",
-          options: ["Both", "Physical", "E-code"],
-        },
-        { name: "name", label: "Name", type: "text" },
-        { name: "rate", label: "Rate", type: "number" },
-        // Store field is handled separately with searchable select
-      ],
+      fields: [],
+    },
+    "edit-card": {
+      title: "Edit Gift Card",
+      fields: [],
     },
     "create-user": {
       title: "Add User",
@@ -62,19 +75,6 @@ function ModalComponent({ type, onClose, onSubmit, giftCardStores = [] }) {
           label: "Status",
           type: "select",
           options: ["active", "inactive"],
-        },
-      ],
-    },
-    "edit-store": {
-      title: "Edit Gift Card Store",
-      fields: [
-        { name: "name", label: "Name", type: "text" },
-        { name: "image", label: "Image", type: "file" },
-        {
-          name: "category",
-          label: "Category",
-          type: "select",
-          options: ["All", "Popular", "Shopping"],
         },
       ],
     },
@@ -95,14 +95,45 @@ function ModalComponent({ type, onClose, onSubmit, giftCardStores = [] }) {
 
   const config = formConfigs[type] || { title: "Form", fields: [] };
 
-  // Handle clicks outside dropdown
+  // PRE-FILL form when editData is provided
+  useEffect(() => {
+    if (editData) {
+      setFormData(editData);
+
+      // For edit-store: pre-fill existing cards if available
+      if (
+        type === "edit-store" &&
+        editData.cards &&
+        editData.cards.length > 0
+      ) {
+        setCards(
+          editData.cards.map((c) => ({
+            type: c.type || "Both",
+            name: c.name || "",
+            rate: c.rate || "",
+          })),
+        );
+      }
+
+      // For edit-card: pre-fill the store search input
+      if (type === "edit-card") {
+        const storeId = editData.store?.id || editData.store;
+        const storeObj = giftCardStores.find((s) => s.id === storeId);
+        if (storeObj) {
+          setSelectedStoreId(storeObj.id);
+          setStoreSearchTerm(storeObj.name);
+        }
+      }
+    }
+  }, [editData, type]);
+
+  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
         setShowStoreDropdown(false);
       }
     };
-
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
@@ -119,7 +150,6 @@ function ModalComponent({ type, onClose, onSubmit, giftCardStores = [] }) {
         size: file.size,
         type: file.type,
       });
-
       const reader = new FileReader();
       reader.onloadend = () => {
         setImagePreview(reader.result);
@@ -143,7 +173,6 @@ function ModalComponent({ type, onClose, onSubmit, giftCardStores = [] }) {
     setCards(cards.filter((_, i) => i !== index));
   };
 
-  // Filter stores based on search
   const filteredStores = giftCardStores.filter((store) =>
     store.name.toLowerCase().includes(storeSearchTerm.toLowerCase()),
   );
@@ -159,8 +188,8 @@ function ModalComponent({ type, onClose, onSubmit, giftCardStores = [] }) {
     setError(null);
     setSuccess(null);
 
+    // ── CREATE / EDIT STORE ──────────────────────────────────────────
     if (type === "create-store" || type === "edit-store") {
-      // Validate required fields
       if (!formData.name) {
         setError("Store name is required");
         return;
@@ -169,14 +198,10 @@ function ModalComponent({ type, onClose, onSubmit, giftCardStores = [] }) {
         setError("Category is required");
         return;
       }
-
-      // Validate at least one card
       if (cards.length === 0) {
         setError("Add at least one gift card");
         return;
       }
-
-      // Validate all cards have name and rate
       for (let card of cards) {
         if (!card.name) {
           setError("All cards must have a name");
@@ -189,70 +214,54 @@ function ModalComponent({ type, onClose, onSubmit, giftCardStores = [] }) {
       }
 
       setLoading(true);
-
       try {
         const formDataToSend = new FormData();
-
-        console.log("📝 Form Data Before Submission:", formData);
-        console.log("🎁 Cards List:", cards);
-
-        // Append basic fields
         formDataToSend.append("name", formData.name);
         formDataToSend.append("category", formData.category);
 
-        // Add image if it exists
         if (formData.image instanceof File) {
-          console.log("✅ Image found, appending to FormData");
           formDataToSend.append("image", formData.image);
-        } else {
-          console.log("⚠️ No image file found");
         }
 
-        // Send cards with all their properties
         const cardsToAdd = cards.map((card) => ({
           type: card.type || "Both",
           name: card.name.trim(),
           rate: parseFloat(card.rate),
         }));
-
-        console.log("🎴 Cards to add:", cardsToAdd);
-
         formDataToSend.append("cards", JSON.stringify(cardsToAdd));
-        console.log("✅ Cards appended as JSON:", JSON.stringify(cardsToAdd));
 
         let response;
         if (type === "create-store") {
-          console.log("📤 Sending POST request to /admin/create-gift-store/");
+          console.log("📤 Creating store...");
           response = await giftCardStoreService.createStore(formDataToSend);
-          console.log("✅ Success Response:", response.data);
+          setSuccess("Store created successfully!");
         } else {
-          console.log(`📤 Sending PUT request for store ID: ${formData.id}`);
+          console.log("📤 Updating store ID:", editData.id);
           response = await giftCardStoreService.updateStore(
-            formData.id,
+            editData.id,
             formDataToSend,
           );
-          console.log("✅ Success Response:", response.data);
+          setSuccess("Store updated successfully!");
         }
 
-        setSuccess("Store created successfully!");
-
+        console.log("✅ Response:", response.data);
+        // ✅ FIX: only call onSubmit — the dashboard handler owns the close
         setTimeout(() => {
-          console.log("📦 Passing response.data to onSubmit:", response.data);
           onSubmit(response.data);
-          handleClose();
         }, 1500);
       } catch (err) {
-        console.error("❌ Error occurred:", err);
+        console.error("❌ Error:", err);
         setError(
           err.response?.data?.detail ||
             err.response?.data?.message ||
             err.message ||
-            "Failed to create store. Please try again.",
+            "Failed to save store. Please try again.",
         );
         setLoading(false);
       }
+
+      // ── CREATE CARD ──────────────────────────────────────────────────
     } else if (type === "create-card") {
-      // Validate gift card fields
       if (!formData.type) {
         setError("Type is required");
         return;
@@ -271,7 +280,6 @@ function ModalComponent({ type, onClose, onSubmit, giftCardStores = [] }) {
       }
 
       setLoading(true);
-
       try {
         const giftCardData = {
           type: formData.type,
@@ -279,18 +287,14 @@ function ModalComponent({ type, onClose, onSubmit, giftCardStores = [] }) {
           rate: parseFloat(formData.rate),
           store: selectedStoreId,
         };
-
-        console.log("🎴 Gift Card Data:", giftCardData);
-
+        console.log("🎴 Creating gift card:", giftCardData);
         const response =
           await giftCardStoreService.createGiftCard(giftCardData);
         console.log("✅ Gift Card Created:", response.data);
-
         setSuccess("Gift card created successfully!");
-
+        // ✅ FIX: only call onSubmit — the dashboard handler owns the close
         setTimeout(() => {
           onSubmit(response.data);
-          handleClose();
         }, 1500);
       } catch (err) {
         console.error("❌ Error creating gift card:", err);
@@ -302,8 +306,60 @@ function ModalComponent({ type, onClose, onSubmit, giftCardStores = [] }) {
         );
         setLoading(false);
       }
+
+      // ── EDIT CARD ────────────────────────────────────────────────────
+    } else if (type === "edit-card") {
+      if (!formData.type) {
+        setError("Type is required");
+        return;
+      }
+      if (!formData.name) {
+        setError("Card name is required");
+        return;
+      }
+      if (!formData.rate) {
+        setError("Rate is required");
+        return;
+      }
+      const resolvedStoreId =
+        selectedStoreId || editData?.store?.id || editData?.store;
+      if (!resolvedStoreId) {
+        setError("Please select a store");
+        return;
+      }
+
+      setLoading(true);
+      try {
+        const giftCardData = {
+          type: formData.type,
+          name: formData.name,
+          rate: parseFloat(formData.rate),
+          store: resolvedStoreId,
+        };
+        console.log("🎴 Updating gift card ID:", editData.id, giftCardData);
+        const response = await giftCardStoreService.updateGiftCard(
+          editData.id,
+          giftCardData,
+        );
+        console.log("✅ Gift Card Updated:", response.data);
+        setSuccess("Gift card updated successfully!");
+        // ✅ FIX: only call onSubmit — the dashboard handler owns the close
+        setTimeout(() => {
+          onSubmit(response.data);
+        }, 1500);
+      } catch (err) {
+        console.error("❌ Error updating gift card:", err);
+        setError(
+          err.response?.data?.detail ||
+            err.response?.data?.message ||
+            err.message ||
+            "Failed to update gift card. Please try again.",
+        );
+        setLoading(false);
+      }
+
+      // ── OTHER FORMS (users etc.) ─────────────────────────────────────
     } else {
-      // For non-store/card forms (users, etc)
       onSubmit(formData);
       handleClose();
     }
@@ -319,6 +375,10 @@ function ModalComponent({ type, onClose, onSubmit, giftCardStores = [] }) {
     setSuccess(null);
     onClose();
   };
+
+  // Whether to show the card/store-select form layout
+  const isCardForm = type === "create-card" || type === "edit-card";
+  const isStoreForm = type === "create-store" || type === "edit-store";
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -354,10 +414,10 @@ function ModalComponent({ type, onClose, onSubmit, giftCardStores = [] }) {
 
         {/* Modal Body */}
         <div className="px-6 py-4 space-y-4">
-          {/* CREATE CARD FORM - Different structure than other forms */}
-          {type && type === "create-card" ? (
+          {/* ── GIFT CARD FORM (create-card & edit-card) ── */}
+          {isCardForm ? (
             <>
-              {/* Type Field */}
+              {/* Type */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Type
@@ -374,7 +434,7 @@ function ModalComponent({ type, onClose, onSubmit, giftCardStores = [] }) {
                 </select>
               </div>
 
-              {/* Name Field */}
+              {/* Name */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Name
@@ -388,7 +448,7 @@ function ModalComponent({ type, onClose, onSubmit, giftCardStores = [] }) {
                 />
               </div>
 
-              {/* Rate Field */}
+              {/* Rate */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Rate
@@ -422,8 +482,6 @@ function ModalComponent({ type, onClose, onSubmit, giftCardStores = [] }) {
                     onFocus={() => setShowStoreDropdown(true)}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                   />
-
-                  {/* Dropdown */}
                   {showStoreDropdown && (
                     <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto">
                       {filteredStores.length === 0 ? (
@@ -453,14 +511,13 @@ function ModalComponent({ type, onClose, onSubmit, giftCardStores = [] }) {
               </div>
             </>
           ) : (
+            /* ── ALL OTHER FORMS (create-store, edit-store, user forms) ── */
             <>
-              {/* Other form types - original logic */}
               {config.fields.map((field) => (
                 <div key={field.name}>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     {field.label}
                   </label>
-
                   {field.type === "select" ? (
                     <select
                       value={formData[field.name] || ""}
@@ -483,10 +540,11 @@ function ModalComponent({ type, onClose, onSubmit, giftCardStores = [] }) {
                         onChange={handleImageChange}
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                       />
-                      {imagePreview && (
+                      {/* Show existing image URL or new preview */}
+                      {(imagePreview || formData.image) && (
                         <div className="mt-4 flex justify-center">
                           <img
-                            src={imagePreview}
+                            src={imagePreview || formData.image}
                             alt="Preview"
                             className="w-32 h-32 object-cover rounded-lg border-2 border-purple-300 shadow-md"
                           />
@@ -507,8 +565,8 @@ function ModalComponent({ type, onClose, onSubmit, giftCardStores = [] }) {
             </>
           )}
 
-          {/* Gift Cards Section - For Store Creation */}
-          {(type === "create-store" || type === "edit-store") && (
+          {/* ── GIFT CARDS SECTION (store forms only) ── */}
+          {isStoreForm && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Gift Cards
@@ -571,7 +629,6 @@ function ModalComponent({ type, onClose, onSubmit, giftCardStores = [] }) {
                       />
                     </div>
 
-                    {/* Remove Button */}
                     {cards.length > 1 && (
                       <button
                         type="button"
@@ -584,7 +641,6 @@ function ModalComponent({ type, onClose, onSubmit, giftCardStores = [] }) {
                   </div>
                 ))}
 
-                {/* Add Card Button */}
                 <button
                   type="button"
                   onClick={addCard}
@@ -609,9 +665,16 @@ function ModalComponent({ type, onClose, onSubmit, giftCardStores = [] }) {
           <button
             onClick={handleSubmit}
             disabled={loading}
-            className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition disabled:opacity-50"
+            className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition disabled:opacity-50 flex items-center gap-2"
           >
-            {loading ? "Saving..." : "Save"}
+            {loading ? (
+              <>
+                <Loader size={16} className="animate-spin" />
+                Saving...
+              </>
+            ) : (
+              "Save"
+            )}
           </button>
         </div>
       </div>
@@ -620,3 +683,119 @@ function ModalComponent({ type, onClose, onSubmit, giftCardStores = [] }) {
 }
 
 export default ModalComponent;
+
+export function ConfirmationModal({
+  isOpen,
+  title,
+  message,
+  description,
+  confirmText = "Confirm",
+  cancelText = "Cancel",
+  type = "danger", // 'danger' | 'warning' | 'info'
+  onConfirm,
+  onCancel,
+  isLoading = false,
+}) {
+  if (!isOpen) return null;
+
+  const getColors = () => {
+    switch (type) {
+      case "danger":
+        return {
+          icon: "text-red-600",
+          button: "bg-red-600 hover:bg-red-700",
+          bg: "bg-red-50",
+          border: "border-red-200",
+          text: "text-red-700",
+        };
+      case "warning":
+        return {
+          icon: "text-yellow-600",
+          button: "bg-yellow-600 hover:bg-yellow-700",
+          bg: "bg-yellow-50",
+          border: "border-yellow-200",
+          text: "text-yellow-700",
+        };
+      case "info":
+        return {
+          icon: "text-blue-600",
+          button: "bg-blue-600 hover:bg-blue-700",
+          bg: "bg-blue-50",
+          border: "border-blue-200",
+          text: "text-blue-700",
+        };
+      default:
+        return {
+          icon: "text-gray-600",
+          button: "bg-gray-600 hover:bg-gray-700",
+          bg: "bg-gray-50",
+          border: "border-gray-200",
+          text: "text-gray-700",
+        };
+    }
+  };
+
+  const colors = getColors();
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100]">
+      <div className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4">
+        {/* Header */}
+        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+          <button
+            onClick={onCancel}
+            disabled={isLoading}
+            className="p-1 hover:bg-gray-100 rounded text-gray-600 disabled:opacity-50"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="px-6 py-6 space-y-4">
+          <div
+            className={`p-4 rounded-lg ${colors.bg} border ${colors.border} flex items-start gap-3`}
+          >
+            <AlertCircle
+              size={20}
+              className={`mt-0.5 flex-shrink-0 ${colors.icon}`}
+            />
+            <div>
+              <p className={`font-medium ${colors.text}`}>{message}</p>
+              {description && (
+                <p className="text-sm text-gray-600 mt-1">{description}</p>
+              )}
+            </div>
+          </div>
+          <p className="text-sm text-gray-600">Please confirm to proceed.</p>
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-4 border-t border-gray-200 flex gap-3 justify-end">
+          <button
+            onClick={onCancel}
+            disabled={isLoading}
+            className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {cancelText}
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={isLoading}
+            className={`px-4 py-2 text-white rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 ${colors.button}`}
+          >
+            {isLoading ? (
+              <>
+                <Loader size={16} className="animate-spin" />
+                Processing...
+              </>
+            ) : (
+              confirmText
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
