@@ -96,7 +96,6 @@ export default function AdminDashboard({ setIsAuthenticated }) {
 
       if (level2Res.status === "fulfilled") {
         setLevel2Requests(level2Res.value.data);
-        console.log(level2Res.value.data);
       } else {
         console.error("❌ Level 2 requests:", level2Res.reason);
       }

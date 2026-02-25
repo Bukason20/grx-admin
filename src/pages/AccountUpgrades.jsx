@@ -130,6 +130,9 @@ function AccountUpgrades({
                   <h4 className="text-lg font-semibold text-gray-900">
                     {request.user.full_name}
                   </h4>
+                  <p className="text-sm text-gray-500 my-1">
+                    {request.user.email}
+                  </p>
                   <p className="text-sm text-gray-600">
                     Level {levelNumber} Upgrade Request
                   </p>
