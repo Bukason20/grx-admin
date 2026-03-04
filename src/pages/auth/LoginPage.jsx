@@ -52,7 +52,7 @@ export default function LoginPage({ setAuthPage, onLoginSuccess }) {
         // Call API service
         const response = await authService.login(
           formData.email,
-          formData.password
+          formData.password,
         );
 
         // Store token in localStorage
@@ -88,7 +88,7 @@ export default function LoginPage({ setAuthPage, onLoginSuccess }) {
       <div className="bg-white rounded-2xl shadow-2xl p-8">
         <div className="text-center mb-8">
           <div className="inline-block bg-purple-100 rounded-full p-3 mb-4">
-            <Lock size={32} className="text-purple-600" />
+            <Lock size={32} className="text-[#FF006A]" />
           </div>
           <h1 className="text-3xl font-bold text-gray-900">GRX Admin</h1>
           <p className="text-gray-600 mt-2">Sign in to your account</p>
@@ -169,7 +169,7 @@ export default function LoginPage({ setAuthPage, onLoginSuccess }) {
           <div className="text-right">
             <button
               onClick={() => setAuthPage("forgot")}
-              className="text-sm text-purple-600 hover:text-purple-700 font-medium"
+              className="text-sm text-[#FF006A] hover:text-purple-700 font-medium"
             >
               Forgot Password?
             </button>
@@ -178,7 +178,7 @@ export default function LoginPage({ setAuthPage, onLoginSuccess }) {
           <button
             onClick={handleSubmit}
             disabled={loading}
-            className="w-full bg-gradient-to-r from-purple-600 to-purple-700 text-white py-2 rounded-lg font-medium hover:shadow-lg transition disabled:opacity-50"
+            className="w-full bg-[#FF006A] text-white py-2 rounded-lg font-medium hover:shadow-lg transition disabled:opacity-50"
           >
             {loading ? "Signing in..." : "Sign In"}
           </button>

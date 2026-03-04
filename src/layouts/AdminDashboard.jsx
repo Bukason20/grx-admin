@@ -22,6 +22,7 @@ import withdrawalService from "../services/withdrawalService";
 import userService from "../services/userService";
 import AccountUpgrades from "../pages/AccountUpgrades";
 import Withdrawals from "../pages/Withdrawals";
+import WithdrawalDetail from "../pages/WithdrawalDetail";
 
 export default function AdminDashboard({ setIsAuthenticated }) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -37,7 +38,10 @@ export default function AdminDashboard({ setIsAuthenticated }) {
   const [level2Requests, setLevel2Requests] = useState([]);
   const [level3Requests, setLevel3Requests] = useState([]);
   const [withdrawals, setWithdrawals] = useState([]);
+
+  // Drives the WithdrawalDetail modal — null = closed
   const [selectedWithdrawalId, setSelectedWithdrawalId] = useState(null);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -54,8 +58,6 @@ export default function AdminDashboard({ setIsAuthenticated }) {
     fetchAllData();
   }, []);
 
-  // Fetch everything at once using allSettled so a single failure
-  // doesn't block the rest of the dashboard from loading
   const fetchAllData = async () => {
     setLoading(true);
     setError(null);
@@ -76,41 +78,27 @@ export default function AdminDashboard({ setIsAuthenticated }) {
         withdrawalService.getAllWithdrawals(),
       ]);
 
-      if (storesRes.status === "fulfilled") {
+      if (storesRes.status === "fulfilled")
         setGiftCardStores(storesRes.value.data);
-      } else {
-        console.error("❌ Stores:", storesRes.reason);
-      }
+      else console.error("❌ Stores:", storesRes.reason);
 
-      if (cardsRes.status === "fulfilled") {
-        setGiftCards(cardsRes.value.data);
-      } else {
-        console.error("❌ Gift cards:", cardsRes.reason);
-      }
+      if (cardsRes.status === "fulfilled") setGiftCards(cardsRes.value.data);
+      else console.error("❌ Gift cards:", cardsRes.reason);
 
-      if (usersRes.status === "fulfilled") {
-        setUsers(usersRes.value.data);
-      } else {
-        console.error("❌ Users:", usersRes.reason);
-      }
+      if (usersRes.status === "fulfilled") setUsers(usersRes.value.data);
+      else console.error("❌ Users:", usersRes.reason);
 
-      if (level2Res.status === "fulfilled") {
+      if (level2Res.status === "fulfilled")
         setLevel2Requests(level2Res.value.data);
-      } else {
-        console.error("❌ Level 2 requests:", level2Res.reason);
-      }
+      else console.error("❌ Level 2:", level2Res.reason);
 
-      if (level3Res.status === "fulfilled") {
+      if (level3Res.status === "fulfilled")
         setLevel3Requests(level3Res.value.data);
-      } else {
-        console.error("❌ Level 3 requests:", level3Res.reason);
-      }
+      else console.error("❌ Level 3:", level3Res.reason);
 
-      if (withdrawalsRes.status === "fulfilled") {
+      if (withdrawalsRes.status === "fulfilled")
         setWithdrawals(withdrawalsRes.value.data);
-      } else {
-        console.error("❌ Withdrawals:", withdrawalsRes.reason);
-      }
+      else console.error("❌ Withdrawals:", withdrawalsRes.reason);
     } catch (err) {
       setError("Failed to load dashboard data. Please try again.");
       console.error("❌ fetchAllData:", err);
@@ -119,8 +107,7 @@ export default function AdminDashboard({ setIsAuthenticated }) {
     }
   };
 
-  // Targeted refresh after any gift card store or card mutation.
-  // Always fetches fresh data from the server — never patches local state.
+  // Targeted refreshes — never patch state manually
   const fetchGiftCardData = async () => {
     try {
       const [storesRes, cardsRes] = await Promise.all([
@@ -135,9 +122,21 @@ export default function AdminDashboard({ setIsAuthenticated }) {
     }
   };
 
-  // ── Stats computed from real API data ────────────────────────────
-  const pendingWithdrawals = withdrawals.filter(
-    (w) => w.status === "pending",
+  // Called by WithdrawalDetail after approve/reject
+  const fetchWithdrawals = async () => {
+    try {
+      const res = await withdrawalService.getAllWithdrawals();
+      setWithdrawals(res.data);
+    } catch (err) {
+      setError("Failed to refresh withdrawals.");
+      console.error("❌ fetchWithdrawals:", err);
+    }
+  };
+
+  // ── Stats ────────────────────────────────────────────────────────
+  // API returns status as "Pending" (capital P) — compare case-insensitively
+  const pendingWithdrawalsCount = withdrawals.filter(
+    (w) => w.status?.toLowerCase() === "pending",
   ).length;
 
   const stats = [
@@ -161,7 +160,7 @@ export default function AdminDashboard({ setIsAuthenticated }) {
     },
     {
       label: "Pending Withdrawals",
-      value: pendingWithdrawals.toLocaleString(),
+      value: pendingWithdrawalsCount.toLocaleString(),
       icon: DollarSign,
       color: "bg-orange-500",
     },
@@ -200,17 +199,13 @@ export default function AdminDashboard({ setIsAuthenticated }) {
   };
 
   // ── Gift Card Store handlers ─────────────────────────────────────
-  // Modal.jsx calls onSubmit(response.data) after the API succeeds.
-  // These handlers re-fetch fresh data from the server then close —
-  // never manually patch local state to avoid stale/partial data.
-
   const handleCreateStore = async () => {
     try {
       await fetchGiftCardData();
       closeModal();
       setError(null);
     } catch (err) {
-      console.error("❌ handleCreateStore refresh:", err);
+      console.error("❌ handleCreateStore:", err);
       setError("Store created but failed to refresh. Please reload.");
     }
   };
@@ -221,7 +216,7 @@ export default function AdminDashboard({ setIsAuthenticated }) {
       closeModal();
       setError(null);
     } catch (err) {
-      console.error("❌ handleUpdateStore refresh:", err);
+      console.error("❌ handleUpdateStore:", err);
       setError("Store updated but failed to refresh. Please reload.");
     }
   };
@@ -229,8 +224,7 @@ export default function AdminDashboard({ setIsAuthenticated }) {
   const handleDeleteStore = async (id) => {
     try {
       await giftCardStoreService.deleteStore(id);
-      // Optimistic removal is safe for deletes — nothing to reconstruct
-      setGiftCardStores((prev) => prev.filter((store) => store.id !== id));
+      setGiftCardStores((prev) => prev.filter((s) => s.id !== id));
     } catch (err) {
       setError("Failed to delete store.");
       console.error("❌ handleDeleteStore:", err);
@@ -244,7 +238,7 @@ export default function AdminDashboard({ setIsAuthenticated }) {
       closeModal();
       setError(null);
     } catch (err) {
-      console.error("❌ handleCreateCard refresh:", err);
+      console.error("❌ handleCreateCard:", err);
       setError("Card created but failed to refresh. Please reload.");
     }
   };
@@ -255,7 +249,7 @@ export default function AdminDashboard({ setIsAuthenticated }) {
       closeModal();
       setError(null);
     } catch (err) {
-      console.error("❌ handleUpdateGiftCard refresh:", err);
+      console.error("❌ handleUpdateGiftCard:", err);
       setError("Card updated but failed to refresh. Please reload.");
     }
   };
@@ -263,7 +257,7 @@ export default function AdminDashboard({ setIsAuthenticated }) {
   const handleDeleteGiftCard = async (id) => {
     try {
       await giftCardStoreService.deleteGiftCard(id);
-      setGiftCards((prev) => prev.filter((card) => card.id !== id));
+      setGiftCards((prev) => prev.filter((c) => c.id !== id));
     } catch (err) {
       setError("Failed to delete gift card.");
       console.error("❌ handleDeleteGiftCard:", err);
@@ -275,14 +269,10 @@ export default function AdminDashboard({ setIsAuthenticated }) {
     try {
       if (level === 2) {
         await accountUpgradeService.approveLevel2(credentialId);
-        setLevel2Requests((prev) =>
-          prev.filter((req) => req.id !== credentialId),
-        );
+        setLevel2Requests((prev) => prev.filter((r) => r.id !== credentialId));
       } else {
         await accountUpgradeService.approveLevel3(credentialId);
-        setLevel3Requests((prev) =>
-          prev.filter((req) => req.id !== credentialId),
-        );
+        setLevel3Requests((prev) => prev.filter((r) => r.id !== credentialId));
       }
       setError(null);
     } catch (err) {
@@ -295,14 +285,10 @@ export default function AdminDashboard({ setIsAuthenticated }) {
     try {
       if (level === 2) {
         await accountUpgradeService.rejectLevel2(credentialId);
-        setLevel2Requests((prev) =>
-          prev.filter((req) => req.id !== credentialId),
-        );
+        setLevel2Requests((prev) => prev.filter((r) => r.id !== credentialId));
       } else {
         await accountUpgradeService.rejectLevel3(credentialId);
-        setLevel3Requests((prev) =>
-          prev.filter((req) => req.id !== credentialId),
-        );
+        setLevel3Requests((prev) => prev.filter((r) => r.id !== credentialId));
       }
       setError(null);
     } catch (err) {
@@ -312,8 +298,6 @@ export default function AdminDashboard({ setIsAuthenticated }) {
   };
 
   // ── Modal submit router ──────────────────────────────────────────
-  // Modal calls onSubmit(response.data) after API succeeds.
-  // Each handler re-fetches from API and closes — no race conditions.
   const getModalSubmitHandler = () => {
     if (modalType === "create-store") return handleCreateStore;
     if (modalType === "edit-store") return handleUpdateStore;
@@ -405,9 +389,7 @@ export default function AdminDashboard({ setIsAuthenticated }) {
         handleLogout={handleLogout}
       />
       <div
-        className={`${
-          sidebarOpen ? "ml-64" : "ml-20"
-        } flex-1 flex flex-col overflow-hidden transition-all duration-300`}
+        className={`${sidebarOpen ? "ml-64" : "ml-20"} flex-1 flex flex-col overflow-hidden transition-all duration-300`}
       >
         <Header pageTitle={getPageTitle()} />
 
@@ -430,6 +412,7 @@ export default function AdminDashboard({ setIsAuthenticated }) {
         </main>
       </div>
 
+      {/* Gift Card / User Modal */}
       {showModal && (
         <Modal
           type={modalType}
@@ -437,6 +420,20 @@ export default function AdminDashboard({ setIsAuthenticated }) {
           onClose={closeModal}
           onSubmit={getModalSubmitHandler()}
           giftCardStores={giftCardStores}
+        />
+      )}
+
+      {/* WithdrawalDetail — opens when a withdrawal row is clicked.
+          onProcessed re-fetches the withdrawals list so the stat card
+          and table both update without a full page reload.              */}
+      {selectedWithdrawalId && (
+        <WithdrawalDetail
+          withdrawalId={selectedWithdrawalId}
+          onClose={() => setSelectedWithdrawalId(null)}
+          onProcessed={() => {
+            fetchWithdrawals();
+            setSelectedWithdrawalId(null);
+          }}
         />
       )}
     </div>

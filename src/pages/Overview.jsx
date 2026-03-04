@@ -24,35 +24,41 @@ const Overview = ({
     );
   }
 
-  // Derived values from real data
   const totalCards = giftCards?.length || 0;
   const totalStores = giftCardStores?.length || 0;
   const topStore = giftCardStores?.[0] || null;
   const topStoreCardCount =
     giftCards?.filter((c) => c.store?.id === topStore?.id).length || 0;
 
+  // API returns "Pending" with capital P — compare case-insensitively
   const pendingWithdrawals =
-    withdrawals?.filter((w) => w.status === "pending") || [];
+    withdrawals?.filter((w) => w.status?.toLowerCase() === "pending") || [];
+
   const totalWithdrawalAmount = withdrawals?.reduce(
-    (sum, w) => sum + parseFloat(w.amount || 0),
+    (sum, w) => sum + Math.abs(parseFloat(w.amount) || 0),
     0,
   );
 
   const recentUsers = users?.slice(0, 5) || [];
   const recentStores = giftCardStores?.slice(0, 5) || [];
 
+  const formatNaira = (amount) =>
+    `₦${parseFloat(amount || 0).toLocaleString("en-NG", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
+
   return (
     <div className="space-y-8">
-      {/* ── Stats Cards ─────────────────────────────────────────── */}
+      {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {stats.map((stat, idx) => (
           <StatsCard key={idx} {...stat} />
         ))}
       </div>
 
-      {/* ── Summary Highlight Cards ──────────────────────────────── */}
+      {/* Summary Highlight Cards */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Top Store */}
         <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow p-6 text-white">
           <h3 className="text-lg font-semibold mb-2">Top Store</h3>
           <p className="text-3xl font-bold truncate">
@@ -64,7 +70,6 @@ const Overview = ({
           </p>
         </div>
 
-        {/* Total Stores */}
         <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow p-6 text-white">
           <h3 className="text-lg font-semibold mb-2">Total Stores</h3>
           <p className="text-3xl font-bold">{totalStores}</p>
@@ -74,15 +79,10 @@ const Overview = ({
           </p>
         </div>
 
-        {/* Withdrawals */}
         <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl shadow p-6 text-white">
           <h3 className="text-lg font-semibold mb-2">Withdrawals</h3>
           <p className="text-3xl font-bold">
-            $
-            {totalWithdrawalAmount?.toLocaleString(undefined, {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            })}
+            {formatNaira(totalWithdrawalAmount)}
           </p>
           <p className="text-orange-100 text-sm mt-2">
             {pendingWithdrawals.length} pending withdrawal
@@ -91,7 +91,7 @@ const Overview = ({
         </div>
       </div>
 
-      {/* ── Recent Gift Card Stores Table ────────────────────────── */}
+      {/* Recent Gift Card Stores Table */}
       <div className="bg-white rounded-xl shadow overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200">
           <h3 className="text-lg font-semibold text-gray-900">
@@ -161,7 +161,7 @@ const Overview = ({
         </div>
       </div>
 
-      {/* ── Recent Users Table ───────────────────────────────────── */}
+      {/* Recent Users Table */}
       <div className="bg-white rounded-xl shadow overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200">
           <h3 className="text-lg font-semibold text-gray-900">Recent Users</h3>
@@ -213,11 +213,7 @@ const Overview = ({
                       </span>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-600 font-medium">
-                      $
-                      {parseFloat(user.transaction_limit || 0).toLocaleString(
-                        undefined,
-                        { minimumFractionDigits: 2, maximumFractionDigits: 2 },
-                      )}
+                      {formatNaira(user.transaction_limit)}
                     </td>
                   </tr>
                 ))}

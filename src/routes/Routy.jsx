@@ -21,7 +21,7 @@ const Routy = () => {
 
   if (loading) {
     return (
-      <div className="w-full h-screen flex items-center justify-center bg-gradient-to-br from-purple-600 to-purple-800">
+      <div className="w-full h-screen flex items-center justify-center bg-[#FF006A]">
         <div className="text-center text-white">
           <div className="text-6xl mb-4">⏳</div>
           <h1 className="text-4xl font-bold">Loading...</h1>
