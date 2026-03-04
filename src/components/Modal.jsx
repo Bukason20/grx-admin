@@ -614,7 +614,7 @@ function ModalComponent({
                     {/* Card Rate */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Rate ($)
+                        Rate (₦)
                       </label>
                       <input
                         type="number"

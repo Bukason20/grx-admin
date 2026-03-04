@@ -343,9 +343,9 @@ function GiftCards({
                                 </span>
                               </td>
                               <td className="px-6 py-4 text-sm text-gray-600 font-medium">
-                                $
+                                ₦
                                 {parseFloat(card.rate || 0).toLocaleString(
-                                  undefined,
+                                  "en-NG",
                                   {
                                     minimumFractionDigits: 2,
                                     maximumFractionDigits: 2,
